@@ -1,0 +1,129 @@
+"""
+Flask REST API
+
+RUN: python3 ./simple_flask-rest.py
+
+REQUEST '/version' location: curl 127.0.0.1:8888/version
+REQUEST '/detect' location: curl --header "Content-Type: application/json" \
+                                 --request POST --data '{"path": "../images/example1.jpeg"}' 127.0.0.1:8888/detect
+"""
+
+# Specify device
+import os
+
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+import uvicorn
+import ujson
+from fastapi import FastAPI
+from starlette_prometheus import PrometheusMiddleware
+from starlette_prometheus import metrics
+from typing import Dict
+
+# Import all necessary libraries.
+import sys
+import traceback
+import cv2
+import copy
+
+# NomeroffNet path
+NOMEROFF_NET_DIR = os.path.abspath('../../../')
+sys.path.append(NOMEROFF_NET_DIR)
+
+from NomeroffNet import __version__
+from NomeroffNet.YoloV5Detector import Detector
+
+detector = Detector()
+detector.load()
+
+from NomeroffNet.BBoxNpPoints import (NpPointsCraft,
+                                      getCvZoneRGB,
+                                      convertCvZonesRGBtoBGR,
+                                      reshapePoints)
+
+npPointsCraft = NpPointsCraft()
+npPointsCraft.load()
+
+from NomeroffNet.OptionsDetector import OptionsDetector
+from NomeroffNet.TextDetector import TextDetector
+
+optionsDetector = OptionsDetector()
+optionsDetector.load("latest")
+
+# Initialize text detector.
+textDetector = TextDetector({
+    "eu_ua_2004_2015": {
+        "for_regions": ["eu_ua_2015", "eu_ua_2004"],
+        "model_path": "latest"
+    },
+    "eu_ua_1995": {
+        "for_regions": ["eu_ua_1995"],
+        "model_path": "latest"
+    },
+    "eu": {
+        "for_regions": ["eu"],
+        "model_path": "latest"
+    },
+    "ru": {
+        "for_regions": ["ru", "eu-ua-ordlo-lpr", "eu-ua-ordlo-dpr"],
+        "model_path": "latest"
+    },
+    "kz": {
+        "for_regions": ["kz"],
+        "model_path": "latest"
+    },
+    "ge": {
+        "for_regions": ["ge"],
+        "model_path": "latest"
+    },
+    "su": {
+        "for_regions": ["su"],
+        "model_path": "latest"
+    }
+})
+
+app = FastAPI()
+app.add_middleware(PrometheusMiddleware)
+app.add_route("/metrics", metrics)
+
+
+@app.get('/version')
+def version():
+    return __version__
+
+
+@app.post('/detect')
+def detect(data: Dict):
+    img_path = data['path']
+    try:
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        print("img", img_path, img.shape)
+
+        target_boxes = detector.detect_bbox(copy.deepcopy(img))
+        all_points = npPointsCraft.detect(img, target_boxes)
+        all_points = [ps for ps in all_points if len(ps)]
+
+        # cut zones
+        rgb_zones = [getCvZoneRGB(img, reshapePoints(rect, 1)) for rect in all_points]
+        zones = convertCvZonesRGBtoBGR(rgb_zones)
+
+        # find standart
+        region_ids, count_lines = optionsDetector.predict(zones)
+        region_names = optionsDetector.getRegionLabels(region_ids)
+
+        # find text with postprocessing by standart
+        text_arr = textDetector.predict(zones, region_names, count_lines)
+        return ujson.dumps(dict(res=text_arr, img_path=img_path))
+    except Exception as e:
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_tb)
+        return ujson.dumps(dict(error=str(e), img_path=img_path))
+
+
+if __name__ == '__main__':
+    uvicorn.run("server:app",
+                host='0.0.0.0',
+                port=os.environ.get("PORT", 8888),
+                reload=False)
