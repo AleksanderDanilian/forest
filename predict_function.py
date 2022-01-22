@@ -18,7 +18,7 @@ WEIGHTS_CLASS = '/content/drive/MyDrive/AIU/Лесозаготовка/Веса_
 # путь к результатам распознавания леса (стандартная папка yolo)
 
 # os.makedirs('/content/yolov5/runs/detect')
-DETECT_DIR = '/content/yolov5/runs/detect'
+DETECT_DIR = '/content/yolov5/forest/runs/detect'
 
 # уверенность (объекты ниже этого порога не будут детектированы)
 CONF = 0.6

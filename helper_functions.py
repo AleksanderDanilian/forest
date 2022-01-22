@@ -90,6 +90,9 @@ def visualize(image, bboxes, area=0, bbox_type='ellipse'):
 # на выход: координаты углов и результат распознавания номера 
 
 # Import license plate recognition tools.
+
+os.chdir('/content/forest/nomeroff-net-master')
+
 from NomeroffNet.YoloV5Detector import Detector
 detector = Detector()
 detector.load()
@@ -103,6 +106,8 @@ from NomeroffNet.TextDetector import TextDetector
 
 from NomeroffNet import TextDetector
 from NomeroffNet import textPostprocessing
+
+os.chdir('/content/forest')
 
 optionsDetector = OptionsDetector()
 optionsDetector.load("latest")
