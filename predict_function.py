@@ -4,6 +4,7 @@ import pandas as pd
 import PIL
 from PIL import Image
 import numpy as np
+from shapely.geometry import Polygon
 from helper_functions import plate_detector, visualize, prepare_crops
 from tensorflow.keras.models import load_model
 
@@ -28,8 +29,10 @@ PLATE_AREA = 5.2 * 1.1  # дм^2
 pi = 3.14159
 
 
-def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHTS_CLASS, img_dir=IMG_DIR, path=DETECT_DIR,
-                   conf=CONF, bbox_type='ellipse', final_wide=800, show=1):
+# def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHTS_CLASS, img_dir=IMG_DIR, path=DETECT_DIR,
+#                    conf=CONF, bbox_type='ellipse', final_wide=800, show=1):
+def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
+                    conf=0.7, bbox_type='ellipse', final_wide=800):
     """ Основная функция. Находит и рассчитывает площадь номера.
     Предсказывает координаты и размер бревен, рассчитывает площадь бревен.
     на вход:
@@ -85,7 +88,7 @@ def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHT
     else:
         area = 4000  # средний размер номера
 
-    img, areas_list = visualize(resized, bboxes, area=area, bbox_type='ellipse')
+    img, areas_list = visualize(resized, bboxes, area=area, bbox_type=bbox_type)
 
     model = load_model(weights_class)
     w_class_list = []
@@ -101,7 +104,7 @@ def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHT
     w_volume = round(w_length * s_overall, 2)
 
     img_edited = Image.fromarray(img, 'RGB')
-    img_edited.save(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.png')  # change save_dir later!
+    img_edited.save(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.png')
 
     bb_pandas = [str(i) for i in bboxes]  # по другому список не положить в 1 колонку в пандас
 
@@ -109,6 +112,6 @@ def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHT
 
     df = pd.DataFrame(data=data,
                       columns=['diameter, cm', 'area, dm2', 'wood class', 'bbox'])
-    df.to_csv(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.csv')  # change save_dir later!
+    df.to_csv(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.csv')
 
     return df, img_edited, w_volume, text_arr
