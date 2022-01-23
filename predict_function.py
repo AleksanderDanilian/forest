@@ -90,7 +90,7 @@ def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHT
     model = load_model(weights_class)
     w_class_list = []
     for i in range(len(bboxes)):
-        cropped_img = prepare_crops(img_dir, bboxes[i], os.path.join(detect_dir, f'crops/{i}.png'))
+        cropped_img = prepare_crops(img_dir, bboxes[i], os.path.join(detect_dir, 'crops'), f'{i}.png')
         w_class = np.argmax(model.predict(np.expand_dims(cropped_img, axis=0)))
         w_class_list.append(w_class)
 

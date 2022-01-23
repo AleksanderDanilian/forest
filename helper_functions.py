@@ -148,7 +148,7 @@ def plate_detector(img):
     return all_points, text_arr
 
 
-def prepare_crops(img_dir, bbox, save_path, resize_dim=(128, 64)):
+def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(128, 64)):
     """
     функция подготавливает вырезанные bbox для
     подачи в модель по классификации изображений
@@ -166,7 +166,7 @@ def prepare_crops(img_dir, bbox, save_path, resize_dim=(128, 64)):
     cropped_image = image.crop(crop_box)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    cropped_image.save(save_path)
+    cropped_image.save(save_path + file_name)
 
     resized_image = cropped_image.resize(resize_dim)
     resized_image = np.array(resized_image)
