@@ -166,7 +166,7 @@ def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(128, 64)):
     cropped_image = image.crop(crop_box)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    cropped_image.save(save_path + file_name)
+    cropped_image.save(os.path.join(save_path, file_name))
 
     resized_image = cropped_image.resize(resize_dim)
     resized_image = np.array(resized_image)
