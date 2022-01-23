@@ -98,7 +98,7 @@ def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHT
     s_overall = round(sum(areas_list) / 100, 2)  # дм2 в м2
     areas_list = list(map(lambda x: round(x, 2), areas_list))
 
-    w_volume = w_length * s_overall
+    w_volume = round(w_length * s_overall, 2)
 
     img_edited = Image.fromarray(img, 'RGB')
     img_edited.save(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.png')  # change save_dir later!
