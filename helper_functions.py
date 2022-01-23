@@ -1,30 +1,21 @@
 import cv2
 import numpy as np
-import os
 import pandas as pd
-import PIL
-from PIL import Image
-
-import cv2
-
-import numpy as np  # Библиотека работы с массивами
-import pandas as pd
-import matplotlib.pyplot as plt  # Для отрисовки графиков
+import matplotlib.pyplot as plt
 from matplotlib.path import Path
 
-# from IPython.display import Image
 import PIL
 from PIL import Image
 
-import random  # Для генерации случайных чисел
-import os  # Для работы с файлами
+import random
+import os
 import subprocess
 import sys
 
 import timeit
 import time
 
-from shapely.geometry import Polygon  # Для функции площади многоугольника
+from shapely.geometry import Polygon
 
 # Функции визуализации 
 
