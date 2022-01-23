@@ -54,7 +54,8 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
     """
 
     # запуск предсказание yolo
-    os.system(f"python detect.py --weights {weights_yolov5} --img 640 --save-txt --conf {conf} --source {img_dir}")
+    path_to_detect_py = '/content/forest/yolov5/detect.py'
+    os.system(f"python {path_to_detect_py} --weights {weights_yolov5} --img 640 --save-txt --conf {conf} --source {img_dir}")
 
     # определение папки с последним предсказанием yolo в папке /content/yolov5/runs/detect
     detect_dir = max([os.path.join(path, dir) for dir in os.listdir(path)], key=os.path.getctime)
