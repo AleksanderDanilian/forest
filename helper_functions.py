@@ -193,5 +193,5 @@ def calc_stack_geometry(bboxes, scale, img_dir):
     stack_height = (yMax - yMin) * scale
     stack_width = (xMax - xMin) * scale
 
-    return stack_width, stack_height
+    return stack_width * 10, stack_height * 10 # дм -> см
 
