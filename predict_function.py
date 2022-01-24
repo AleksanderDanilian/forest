@@ -8,26 +8,7 @@ from shapely.geometry import Polygon
 from helper_functions import plate_detector, visualize, prepare_crops
 from tensorflow.keras.models import load_model
 
-# путь к фото лесовоза, которое будет передано для расчета
-IMG_DIR = '/content/drive/MyDrive/AIU/Лесозаготовка/train/2.jpg'
 
-# путь к весам yolo
-WEIGHTS_YOLOV5 = '/content/drive/MyDrive/AIU/Лесозаготовка/веса_Yolo_Timber/best.pt'
-
-# путь к весам классификации
-WEIGHTS_CLASS = '/content/drive/MyDrive/AIU/Лесозаготовка/Веса_классификация/timber_CNN.h5'
-
-# путь к результатам распознавания леса (стандартная папка yolo)
-DETECT_DIR = '/content/yolov5/forest/runs/detect'
-
-# площадь российского номерного знака
-PLATE_AREA = 5.2 * 1.1  # дм^2
-
-pi = 3.14159
-
-
-# def predict_timber(w_length, weights_yolov5=WEIGHTS_YOLOV5, weights_class=WEIGHTS_CLASS, img_dir=IMG_DIR, path=DETECT_DIR,
-#                    conf=CONF, bbox_type='ellipse', final_wide=800, show=1):
 def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
                     conf=0.7, bbox_type='ellipse', final_wide=800):
     """ Основная функция. Находит и рассчитывает площадь номера.
@@ -67,7 +48,7 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
 
     # функция распознавания номера
     plate, text_arr = plate_detector(image)
-
+    pi = 3.14159
     # меняем изображение до подготовленных размеров
     r = float(final_wide) / image.shape[1]
     dim = (final_wide, int(image.shape[0] * r))

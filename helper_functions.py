@@ -21,7 +21,7 @@ from shapely.geometry import Polygon
 
 BOX_COLOR = (255, 0, 0)  # Red
 TEXT_COLOR = (40, 0, 0)  # White
-pi = 3.1415926535
+pi = 3.14159
 PLATE_AREA = 5.2 * 1.1
 
 
