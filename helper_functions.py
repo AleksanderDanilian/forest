@@ -187,7 +187,7 @@ def calc_stack_geometry(bboxes, scale, img_dir):
             yMin = crop_box[1]
         if crop_box[2] > xMax: # правый нижний угол
             crop_box[2] = xMax
-        if crop_box[3] > yMax # правый нижний угол
+        if crop_box[3] > yMax: # правый нижний угол
             crop_box[3] = yMax
 
     stack_height = (yMax - yMin) * scale
