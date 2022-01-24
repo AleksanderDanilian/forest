@@ -92,6 +92,8 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
 
     df = pd.DataFrame(data=data,
                       columns=['diameter, cm', 'area, dm2', 'wood class', 'bbox'])
+    df = df.astype({'diameter, cm': 'float64', 'area, dm2': 'float64'})
+
     df.to_csv(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.csv')
 
     return df, img_edited, w_volume, text_arr, stack_width, stack_height
