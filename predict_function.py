@@ -5,7 +5,7 @@ import PIL
 from PIL import Image
 import numpy as np
 from shapely.geometry import Polygon
-from helper_functions import plate_detector, visualize, prepare_crops
+from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry
 from tensorflow.keras.models import load_model
 
 
@@ -67,7 +67,7 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
     else:
         area = 4000  # средний размер номера
 
-    img, areas_list = visualize(resized, bboxes, area=area, bbox_type=bbox_type)
+    img, areas_list, scale = visualize(resized, bboxes, area=area, bbox_type=bbox_type)
 
     model = load_model(weights_class)
     w_class_list = []
@@ -80,7 +80,8 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
     s_overall = round(sum(areas_list) / 100, 2)  # дм2 в м2
     areas_list = list(map(lambda x: round(x, 2), areas_list))
 
-    w_volume = round(w_length * s_overall, 2)
+    w_volume = round(w_length/100 * s_overall, 2) # пользователь вводит см
+    stack_width, stack_height = calc_stack_geometry(bboxes, scale, img_dir)
 
     img_edited = Image.fromarray(img, 'RGB')
     img_edited.save(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.png')
@@ -93,4 +94,4 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
                       columns=['diameter, cm', 'area, dm2', 'wood class', 'bbox'])
     df.to_csv(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.csv')
 
-    return df, img_edited, w_volume, text_arr
+    return df, img_edited, w_volume, text_arr, stack_width, stack_height

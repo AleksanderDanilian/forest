@@ -50,10 +50,10 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
     # площадь бревна в кв. дециметрах (делим площадь бревна в пикселях на площадь номера, потом умножаем
     # на размер номера)
     # на бревнах указываем диаметр бревна
-    area_float = (w / 2) * (h / 2) * pi / area * PLATE_AREA  # площадь бревна до округления (дм2)
-    area = str(round(area_float, 1))
+    timb_area = (w / 2) * (h / 2) * pi / area * PLATE_AREA  # площадь бревна до округления (дм2)
+    scale = PLATE_AREA / area  # масштаб фото дм2/pixel
     diameter = str(
-        int(round((area_float / pi) ** 0.5 * 20, 0)))  # 10 - перевод в см, 2 - вынесли за скобки sqrt
+        int(round((timb_area / pi) ** 0.5 * 20, 0)))  # 10 - перевод в см, 2 - вынесли за скобки sqrt
 
     fsc = 0.8
     ((text_width, text_height), _) = cv2.getTextSize(diameter, cv2.FONT_HERSHEY_SIMPLEX, fsc, 1)
@@ -66,7 +66,7 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
         color=TEXT_COLOR,
         lineType=cv2.LINE_AA,
     )
-    return img, area_float
+    return img, timb_area, scale
 
 
 def visualize(image, bboxes, area=0, bbox_type='ellipse'):
@@ -83,9 +83,9 @@ def visualize(image, bboxes, area=0, bbox_type='ellipse'):
         bbxs[:, [0, 2]] = bbxs[:, [0, 2]] * img.shape[1]
         bbxs[:, [1, 3]] = bbxs[:, [1, 3]] * img.shape[0]
     for bbox in bbxs:
-        img, timb_area = visualize_bbox(img, bbox, area=area, bbox_type=bbox_type)
+        img, timb_area, scale = visualize_bbox(img, bbox, area=area, bbox_type=bbox_type)
         area_list.append(timb_area)
-    return img, area_list
+    return img, area_list, scale
 
 
 # Import license plate recognition tools.
@@ -164,3 +164,34 @@ def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(128, 64)):
     normalized_image = resized_image / 255
 
     return normalized_image
+
+
+def calc_stack_geometry(bboxes, scale, img_dir):
+    """
+    Функция находит геометрические размеры штабеля
+    с древесиной
+    на вход: все bboxes, размеры номера
+    на выход: координаты рамки, высота, ширина
+    """
+    image = Image.open(img_dir)
+    width, height = image.size
+
+    xMin, yMin, xMax, yMax = width, height, 0, 0
+    for i in range(bboxes):
+        xc, yc, w, h = bboxes[i]
+        crop_box = [int(xc * width - w * width / 2), int(yc * height - h * height / 2), int(xc * width + w * width / 2),
+                    int(yc * height + h * height / 2)]
+        if crop_box[0] < xMin: # левый верхний угол
+            xMin = crop_box[0]
+        if crop_box[1] < yMin: # левый верхний угол
+            yMin = crop_box[1]
+        if crop_box[2] > xMax: # правый нижний угол
+            crop_box[2] = xMax
+        if crop_box[3] > yMax # правый нижний угол
+            crop_box[3] = yMax
+
+    stack_height = (yMax - yMin) * scale
+    stack_width = (xMax - xMin) * scale
+
+    return stack_width, stack_height
+
