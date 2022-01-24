@@ -1,3 +1,5 @@
+import math
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -51,7 +53,7 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
     # на размер номера)
     # на бревнах указываем диаметр бревна
     timb_area = (w / 2) * (h / 2) * pi / area * PLATE_AREA  # площадь бревна до округления (дм2)
-    scale = PLATE_AREA / area  # масштаб фото дм2/pixel
+    scale_sq = PLATE_AREA / area  # масштаб фото дм2/pixel2
     diameter = str(
         int(round((timb_area / pi) ** 0.5 * 20, 0)))  # 10 - перевод в см, 2 - вынесли за скобки sqrt
 
@@ -66,7 +68,7 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
         color=TEXT_COLOR,
         lineType=cv2.LINE_AA,
     )
-    return img, timb_area, scale
+    return img, timb_area, scale_sq
 
 
 def visualize(image, bboxes, area=0, bbox_type='ellipse'):
@@ -83,9 +85,9 @@ def visualize(image, bboxes, area=0, bbox_type='ellipse'):
         bbxs[:, [0, 2]] = bbxs[:, [0, 2]] * img.shape[1]
         bbxs[:, [1, 3]] = bbxs[:, [1, 3]] * img.shape[0]
     for bbox in bbxs:
-        img, timb_area, scale = visualize_bbox(img, bbox, area=area, bbox_type=bbox_type)
+        img, timb_area, scale_sq = visualize_bbox(img, bbox, area=area, bbox_type=bbox_type)
         area_list.append(timb_area)
-    return img, area_list, scale
+    return img, area_list, scale_sq
 
 
 # Import license plate recognition tools.
@@ -166,7 +168,7 @@ def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(128, 64)):
     return normalized_image
 
 
-def calc_stack_geometry(bboxes, scale, img_dir):
+def calc_stack_geometry(bboxes, scale_sq, img_dir):
     """
     Функция находит геометрические размеры штабеля
     с древесиной
@@ -190,8 +192,10 @@ def calc_stack_geometry(bboxes, scale, img_dir):
         if crop_box[3] > yMax: # правый нижний угол
             yMax = crop_box[3]
 
+    scale = 10 * math.sqrt(scale_sq) # линейный масштаб cм/pixel (был дм2/pixel2)
+
     stack_height = (yMax - yMin) * scale
     stack_width = (xMax - xMin) * scale
 
-    return stack_width * 10, stack_height * 10 # дм -> см
+    return stack_width, stack_height
 
