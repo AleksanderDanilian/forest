@@ -177,7 +177,7 @@ def calc_stack_geometry(bboxes, scale, img_dir):
     width, height = image.size
 
     xMin, yMin, xMax, yMax = width, height, 0, 0
-    for i in range(bboxes):
+    for i in range(len(bboxes)):
         xc, yc, w, h = bboxes[i]
         crop_box = [int(xc * width - w * width / 2), int(yc * height - h * height / 2), int(xc * width + w * width / 2),
                     int(yc * height + h * height / 2)]
