@@ -214,7 +214,7 @@ def get_GPS(img_dir):
     return gps_coords
 
 
-def draw_classes(img, bboxes, w_class_list, detect_dir, color=BOX_COLOR, thickness=2, text_color=(0, 0, 0)):
+def draw_classes(img, bboxes, w_class_list, detect_dir, color=BOX_COLOR, thickness=2, text_color=(255, 255, 0)):
     """
     Функция подсчета общей площади бревен
     на вход: изображение, bbox
