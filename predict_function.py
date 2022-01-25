@@ -5,12 +5,12 @@ import PIL
 from PIL import Image
 import numpy as np
 from shapely.geometry import Polygon
-from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS
+from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS, draw_classes
 from tensorflow.keras.models import load_model
 
 
 def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
-                    conf=0.7, bbox_type='ellipse', final_wide=800):
+                   conf=0.7, bbox_type='ellipse', final_wide=800):
     """ Основная функция. Находит и рассчитывает площадь номера.
     Предсказывает координаты и размер бревен, рассчитывает площадь бревен.
     на вход:
@@ -33,7 +33,8 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
 
     # запуск предсказание yolo
     path_to_detect_py = '/content/forest/yolov5/detect.py'
-    os.system(f"python {path_to_detect_py} --weights {weights_yolov5} --img 640 --save-txt --conf {conf} --source {img_dir}")
+    os.system(
+        f"python {path_to_detect_py} --weights {weights_yolov5} --img 640 --save-txt --conf {conf} --source {img_dir}")
 
     # определение папки с последним предсказанием yolo в папке /content/yolov5/runs/detect
     detect_dir = max([os.path.join(path, dir) for dir in os.listdir(path)], key=os.path.getctime)
@@ -80,7 +81,9 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
     s_overall = round(sum(areas_list) / 100, 2)  # дм2 в м2
     areas_list = list(map(lambda x: round(x, 2), areas_list))
 
-    w_volume = round(w_length/100 * s_overall, 2) # пользователь вводит см
+    draw_classes(resized, bboxes, w_class_list, detect_dir)  # here - from resized - draw wood classes
+
+    w_volume = round(w_length / 100 * s_overall, 2)  # пользователь вводит см
     stack_width, stack_height = calc_stack_geometry(bboxes, scale_sq, img_dir)
 
     img_edited = Image.fromarray(img, 'RGB')
@@ -96,6 +99,6 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
 
     df.to_csv(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.csv')
 
-    coords_gps = get_GPS(img_dir) # извлекаем гео метки
+    coords_gps = get_GPS(img_dir)  # извлекаем гео метки
 
     return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps

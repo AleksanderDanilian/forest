@@ -185,16 +185,16 @@ def calc_stack_geometry(bboxes, scale_sq, img_dir):
         xc, yc, w, h = bboxes[i]
         crop_box = [int(xc * width - w * width / 2), int(yc * height - h * height / 2), int(xc * width + w * width / 2),
                     int(yc * height + h * height / 2)]
-        if crop_box[0] < xMin: # левый верхний угол
+        if crop_box[0] < xMin:  # левый верхний угол
             xMin = crop_box[0]
-        if crop_box[1] < yMin: # левый верхний угол
+        if crop_box[1] < yMin:  # левый верхний угол
             yMin = crop_box[1]
-        if crop_box[2] > xMax: # правый нижний угол
+        if crop_box[2] > xMax:  # правый нижний угол
             xMax = crop_box[2]
-        if crop_box[3] > yMax: # правый нижний угол
+        if crop_box[3] > yMax:  # правый нижний угол
             yMax = crop_box[3]
 
-    scale = 10 * math.sqrt(scale_sq) # линейный масштаб cм/pixel (был дм2/pixel2)
+    scale = 10 * math.sqrt(scale_sq)  # линейный масштаб cм/pixel (был дм2/pixel2)
 
     stack_height = (yMax - yMin) * scale
     stack_width = (xMax - xMin) * scale
@@ -212,3 +212,35 @@ def get_GPS(img_dir):
     else:
         gps_coords = 'У фотографии нет гео метки'
     return gps_coords
+
+
+def draw_classes(img, bboxes, w_class_list, detect_dir, color=BOX_COLOR, thickness=2, text_color=(0, 0, 0)):
+    """
+    Функция подсчета общей площади бревен
+    на вход: изображение, bbox
+    на выход: изображение с отметкой бревна и площадь бревна
+    """
+    for i in range(len(bboxes)):
+        x_cntr, y_cntr, w, h = map(int, bboxes[i])  # координаты центров и размеры рамок
+        # x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
+        center_coordinates = (x_cntr, y_cntr)
+
+        a, b = int(w / 2), int(h / 2)
+        axes_length = (a, b)
+        cv2.ellipse(img, center_coordinates, axes_length, angle=0, startAngle=0, endAngle=360, color=color,
+                    thickness=thickness)
+
+        fsc = 0.8
+        ((text_width, text_height), _) = cv2.getTextSize(w_class_list[i], cv2.FONT_HERSHEY_SIMPLEX, fsc, 1)
+        cv2.putText(
+            img,
+            text=w_class_list[i],
+            org=(x_cntr - int(text_width / 2), y_cntr + int(0.5 * text_height)),
+            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale=fsc,
+            color=text_color,
+            lineType=cv2.LINE_AA,
+        )
+
+    img_edited = Image.fromarray(img, 'RGB')
+    img_edited.save(detect_dir + f'/wood_classes.png')
