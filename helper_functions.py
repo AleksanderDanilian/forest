@@ -214,23 +214,29 @@ def get_GPS(img_dir):
     return gps_coords
 
 
-def draw_classes(img, bboxes, w_class_list, detect_dir, color=BOX_COLOR, thickness=2, text_color=(255, 255, 0)):
+def draw_classes(img, bboxes, w_class_list, detect_dir, color=(255, 0, 0), text_color=(255, 255, 0), thickness=2):
     """
     Функция подсчета общей площади бревен
     на вход: изображение, bbox
     на выход: изображение с отметкой бревна и площадь бревна
     """
+
+    height, width = img.shape[0], img.shape[1]
     for i in range(len(bboxes)):
-        x_cntr, y_cntr, w, h = map(int, bboxes[i])  # координаты центров и размеры рамок
-        # x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
-        center_coordinates = (x_cntr, y_cntr)
+        x_cntr, y_cntr, w, h = bboxes[i]
+        x_cntr, w = int(x_cntr * width), int(w * width)
+        y_cntr, h = int(y_cntr * height), int(h * height)
+
+        center_coordinates = (int(x_cntr), int(y_cntr))
 
         a, b = int(w / 2), int(h / 2)
         axes_length = (a, b)
+
         cv2.ellipse(img, center_coordinates, axes_length, angle=0, startAngle=0, endAngle=360, color=color,
                     thickness=thickness)
 
         fsc = 0.8
+
         ((text_width, text_height), _) = cv2.getTextSize(str(w_class_list[i]), cv2.FONT_HERSHEY_SIMPLEX, fsc, 1)
         cv2.putText(
             img,
