@@ -19,6 +19,8 @@ import time
 
 from shapely.geometry import Polygon
 
+from GPSPhoto import gpsphoto
+
 # Функции визуализации 
 
 BOX_COLOR = (255, 0, 0)  # Red
@@ -199,3 +201,14 @@ def calc_stack_geometry(bboxes, scale_sq, img_dir):
 
     return stack_width, stack_height
 
+
+def get_GPS(img_dir):
+    """
+    Функция извлекает геоданные из фотографии, если они там есть
+    """
+    data = gpsphoto.getGPSData(img_dir)
+    if data != {}:
+        gps_coords = {'Широта': data['Latitude'], 'Долгота': data['Longitude']}
+    else:
+        gps_coords = 'У фотографии нет гео метки'
+    return gps_coords

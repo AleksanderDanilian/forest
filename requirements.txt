@@ -34,5 +34,10 @@ pandas>=1.1.4
 
 thop  # FLOPs computation
 
+# geotagging
+gpsphoto
+exifread
+piexif
+
 # other
 shapely

@@ -5,7 +5,7 @@ import PIL
 from PIL import Image
 import numpy as np
 from shapely.geometry import Polygon
-from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry
+from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS
 from tensorflow.keras.models import load_model
 
 
@@ -96,4 +96,6 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
 
     df.to_csv(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.csv')
 
-    return df, img_edited, w_volume, text_arr, stack_width, stack_height
+    coords_gps = get_GPS(img_dir) # извлекаем гео метки
+
+    return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps
