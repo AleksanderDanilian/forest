@@ -231,10 +231,10 @@ def draw_classes(img, bboxes, w_class_list, detect_dir, color=BOX_COLOR, thickne
                     thickness=thickness)
 
         fsc = 0.8
-        ((text_width, text_height), _) = cv2.getTextSize(w_class_list[i], cv2.FONT_HERSHEY_SIMPLEX, fsc, 1)
+        ((text_width, text_height), _) = cv2.getTextSize(str(w_class_list[i]), cv2.FONT_HERSHEY_SIMPLEX, fsc, 1)
         cv2.putText(
             img,
-            text=w_class_list[i],
+            text=str(w_class_list[i]),
             org=(x_cntr - int(text_width / 2), y_cntr + int(0.5 * text_height)),
             fontFace=cv2.FONT_HERSHEY_SIMPLEX,
             fontScale=fsc,
