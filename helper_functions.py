@@ -143,7 +143,7 @@ def plate_detector(img):
     return all_points, text_arr
 
 
-def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(128, 64)):
+def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(48, 48), normalize=False):
     """
     функция подготавливает вырезанные bbox для
     подачи в модель по классификации изображений
@@ -165,9 +165,10 @@ def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(128, 64)):
 
     resized_image = cropped_image.resize(resize_dim)
     resized_image = np.array(resized_image)
-    normalized_image = resized_image / 255
+    if normalize:
+        resized_image = resized_image / 255
 
-    return normalized_image
+    return resized_image
 
 
 def calc_stack_geometry(bboxes, scale_sq, img_dir):
