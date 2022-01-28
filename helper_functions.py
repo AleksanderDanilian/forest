@@ -143,7 +143,7 @@ def plate_detector(img):
     return all_points, text_arr
 
 
-def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(48, 48), normalize=False):
+def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(48, 48), normalize=True):
     """
     функция подготавливает вырезанные bbox для
     подачи в модель по классификации изображений
