@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 
 import PIL
-from PIL import Image
+from PIL import Image, ImageOps
 
 import random
 import os
@@ -143,7 +143,44 @@ def plate_detector(img):
     return all_points, text_arr
 
 
-def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(48, 48), normalize=True):
+def crop_center(pil_img, crop_width: int, crop_height: int) -> Image:
+    """
+    Функция для обрезки изображения по центру.
+    """
+    img_width, img_height = pil_img.size
+    return pil_img.crop(((img_width - crop_width) // 2,
+                         (img_height - crop_height) // 2,
+                         (img_width + crop_width) // 2,
+                         (img_height + crop_height) // 2))
+
+
+def thumbnail(pil_img, dims):
+    """
+    Функция для обрезки изображения по наибольшему размеру.
+    На вход: изображение
+    На выход: квадратное изображение размером (dims, dims) без искажения исходного отношения высоты и ширины.
+    Пустоты залиты черным цветом.
+
+    """
+    img_w, img_h = pil_img.size[0], pil_img.size[1]
+    max_val = np.argmax([img_w, img_h])
+    scale = pil_img.size[max_val] / dims
+
+    if img_w > img_h:
+        new_img_w = dims
+        new_img_h = int(img_h / scale)
+    else:
+        new_img_h = dims
+        new_img_w = int(img_w / scale)
+
+    pil_img = pil_img.resize((new_img_w, new_img_h))
+    img = crop_center(pil_img, dims, dims)
+
+    return img
+
+
+def prepare_crops(img_dir, bbox, save_path, file_name,
+                  resize_dim=(64, 64), res_type='zoom', normalize=False):
     """
     функция подготавливает вырезанные bbox для
     подачи в модель по классификации изображений
@@ -163,7 +200,12 @@ def prepare_crops(img_dir, bbox, save_path, file_name, resize_dim=(48, 48), norm
         os.makedirs(save_path)
     cropped_image.save(os.path.join(save_path, file_name))
 
-    resized_image = cropped_image.resize(resize_dim)
+    if res_type == 'stretch':
+        resized_image = cropped_image.resize(resize_dim)
+    elif res_type == 'zoom':
+        resized_image = ImageOps.fit(cropped_image, resize_dim, Image.ANTIALIAS)
+    elif res_type == 'thumbnail':
+        resized_image = thumbnail(cropped_image, resize_dim[0])
     resized_image = np.array(resized_image)
     if normalize:
         resized_image = resized_image / 255

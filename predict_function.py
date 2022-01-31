@@ -72,10 +72,10 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
 
     model = load_model(weights_class)
     w_class_list = []
-    w_classes = ['1/2', '3', 'dr']  # подвиды древесины (для модели EfficientNetB0)
+    w_classes = ['1', '3', 'dr']  # подвиды древесины (для модели EfficientNetB0)
     for i in range(len(bboxes)):
         cropped_img = prepare_crops(img_dir, bboxes[i], os.path.join(detect_dir, 'crops'), f'{i}.png',
-                                    resize_dim=(64, 64), normalize=False)
+                                    resize_dim=(64, 64), res_type='zoom', normalize=False)
         w_class = w_classes[np.argmax(model.predict(np.expand_dims(cropped_img, axis=0)))]
         w_class_list.append(w_class)
 
