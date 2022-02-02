@@ -5,11 +5,12 @@ import PIL
 from PIL import Image
 import numpy as np
 from shapely.geometry import Polygon
-from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS, draw_classes
+from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS, draw_classes, \
+    find_nearest
 from tensorflow.keras.models import load_model
 
 
-def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
+def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
                    conf=0.7, bbox_type='ellipse', final_wide=800):
     """ Основная функция. Находит и рассчитывает площадь номера.
     Предсказывает координаты и размер бревен, рассчитывает площадь бревен.
@@ -18,7 +19,7 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
     w_length - длина древесины
     weighns_yolov5 - обученные веса yolo
     weighns_class - обученные веса нейронки по классификации сортов древесины
-    path - куда сохраняем результаты
+    path_save - куда сохраняем результаты
     conf - уверенность
     bbox_type - тип bounding box, варианты: ellipse, circle, box
     final_wide - ширина выводимого изображения
@@ -37,7 +38,7 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
         f"python {path_to_detect_py} --weights {weights_yolov5} --img 640 --save-txt --conf {conf} --source {img_dir}")
 
     # определение папки с последним предсказанием yolo в папке /content/yolov5/runs/detect
-    detect_dir = max([os.path.join(path, dir) for dir in os.listdir(path)], key=os.path.getctime)
+    detect_dir = max([os.path.join(path_save, dir) for dir in os.listdir(path_save)], key=os.path.getctime)
 
     # чтение предсказанных координат
     bbox_array = np.loadtxt(detect_dir + '/labels/' + os.listdir(detect_dir + '/labels/')[0])
@@ -104,3 +105,45 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path,
     coords_gps = get_GPS(img_dir)  # извлекаем гео метки
 
     return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps
+
+
+def compare_tables(df_1, df_2, margin=0.05):
+    """
+    Функция возвращает словарь, в котором сопоставляются древесина с 1й картинки(датафрейма df_1), древесине со 2й
+    картинки(датафрейма df_2).
+    param df_1: Датафрейм первой картинки
+    param df_2: Датафрейм второй картинки
+    param margin: диапазон поиска бревен на 1й картинке в процентах от значения площади конкретного бревна на
+    2й картинке
+    :return: словарь, сопоставляющий бревна 1й и 2й картинок
+    """
+
+    areas_list_1 = df_1['area, dm2'].values
+    classes_list_1 = df_1['wood class'].values
+
+    areas_list_2 = df_2['area, dm2'].values
+    classes_list_2 = df_2['wood class'].values
+
+    matching_list = {}
+
+    for num, el in enumerate(areas_list_2):
+        idx = np.argwhere((areas_list_1 > el * (1 - margin)) & (areas_list_1 < el * (1 + margin)))
+        idx = idx[classes_list_2[num] == classes_list_1[idx]]  # оставляем полено, которое подходит по классу
+        s_nearest = find_nearest(areas_list_1[idx],
+                                 areas_list_2[num])  # если более 1го полена, то берем то, которое ближе по площади
+        idx = np.argwhere(areas_list_1 == s_nearest)[0][0]  # ищем индекс нашей площади в начальном списке
+
+        matching_list[f'{num}'] = idx
+
+    return matching_list
+
+
+
+def compare_imgs(img_dir_1, img_dir_2, weights_yolov5, weights_class, path_save):
+
+    df_1, img_edited_1, _, _, _, _, _ = predict_timber(weights_yolov5, weights_class, img_dir_1,
+                                                       path_save, w_length=1)
+
+    df_2, img_edited_2, _, _, _, _, _ = predict_timber(weights_yolov5, weights_class, img_dir_2,
+                                                       path_save, w_length=1)
+

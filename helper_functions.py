@@ -293,3 +293,11 @@ def draw_classes(img, bboxes, w_class_list, detect_dir, color=(255, 0, 0), text_
 
     img_edited = Image.fromarray(img, 'RGB')
     img_edited.save(detect_dir + f'/wood_classes.png')
+
+
+def find_nearest(a, a0):
+    """
+    Поиск элемента в массиве `a` ближайшего к скаляру `a0`
+    """
+    idx = np.abs(a - a0).argmin()
+    return a.flat[idx]
