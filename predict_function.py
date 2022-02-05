@@ -6,7 +6,7 @@ from PIL import Image
 import numpy as np
 from shapely.geometry import Polygon
 from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS, draw_classes, \
-    find_nearest
+    find_nearest, compare_images, draw_matching_bbox
 from tensorflow.keras.models import load_model
 
 
@@ -84,9 +84,9 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     s_overall = round(sum(areas_list) / 100, 2)  # дм2 в м2
     areas_list = list(map(lambda x: round(x, 2), areas_list))
 
-    draw_classes(resized, bboxes, w_class_list, detect_dir)  # here - from resized - draw wood classes
+    draw_classes(resized, bboxes, w_class_list, detect_dir)
 
-    w_volume = round(w_length / 100 * s_overall, 2)  # пользователь вводит см
+    w_volume = round(w_length / 100 * s_overall, 2)  # пользователь вводит w_length в см
     stack_width, stack_height = calc_stack_geometry(bboxes, scale_sq, img_dir)
 
     img_edited = Image.fromarray(img, 'RGB')
@@ -107,43 +107,21 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps
 
 
-def compare_tables(df_1, df_2, margin=0.05):
-    """
-    Функция возвращает словарь, в котором сопоставляются древесина с 1й картинки(датафрейма df_1), древесине со 2й
-    картинки(датафрейма df_2).
-    param df_1: Датафрейм первой картинки
-    param df_2: Датафрейм второй картинки
-    param margin: диапазон поиска бревен на 1й картинке в процентах от значения площади конкретного бревна на
-    2й картинке
-    :return: словарь, сопоставляющий бревна 1й и 2й картинок
-    """
-
-    areas_list_1 = df_1['area, dm2'].values
-    classes_list_1 = df_1['wood class'].values
-
-    areas_list_2 = df_2['area, dm2'].values
-    classes_list_2 = df_2['wood class'].values
-
-    matching_list = {}
-
-    for num, el in enumerate(areas_list_2):
-        idx = np.argwhere((areas_list_1 > el * (1 - margin)) & (areas_list_1 < el * (1 + margin)))
-        idx = idx[classes_list_2[num] == classes_list_1[idx]]  # оставляем полено, которое подходит по классу
-        s_nearest = find_nearest(areas_list_1[idx],
-                                 areas_list_2[num])  # если более 1го полена, то берем то, которое ближе по площади
-        idx = np.argwhere(areas_list_1 == s_nearest)[0][0]  # ищем индекс нашей площади в начальном списке
-
-        matching_list[f'{num}'] = idx
-
-    return matching_list
-
-
-
-def compare_imgs(img_dir_1, img_dir_2, weights_yolov5, weights_class, path_save):
-
+def get_difference(img_dir_1, img_dir_2, weights_yolov5, weights_class, weights_compare, path_save):
     df_1, img_edited_1, _, _, _, _, _ = predict_timber(weights_yolov5, weights_class, img_dir_1,
                                                        path_save, w_length=1)
 
     df_2, img_edited_2, _, _, _, _, _ = predict_timber(weights_yolov5, weights_class, img_dir_2,
                                                        path_save, w_length=1)
 
+    matching_dict = compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path=weights_compare, dim=(64, 64))
+
+    img_1, img_2, percentage_same = draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict,
+                                                       color_box=(0, 0, 255), color_text=(255, 255, 255), thickness=2)
+
+    detect_dir = max([os.path.join(path_save, dir) for dir in os.listdir(path_save)], key=os.path.getctime)
+
+    cv2.imwrite(os.path.join(detect_dir, 'first.jpg'), img_1)
+    cv2.imwrite(os.path.join(detect_dir, 'second.jpg'), img_2)
+
+    return img_1, img_2, percentage_same

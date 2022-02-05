@@ -1,4 +1,5 @@
 import math
+import re
 
 import cv2
 import numpy as np
@@ -45,7 +46,7 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
         cv2.ellipse(img, center_coordinates, axes_length, angle=0, startAngle=0, endAngle=360, color=color,
                     thickness=thickness)  # angle=0, startAngle=0, endAngle=360,
     elif bbox_type == 'circle':
-        radius = int(sq ** 0.5 / 2)  # sq?
+        radius = int(sq ** 0.5 / 2)
         cv2.circle(img, center_coordinates, radius, color=color, thickness=thickness)
         pass
     else:
@@ -257,6 +258,18 @@ def get_GPS(img_dir):
     return gps_coords
 
 
+def bboxes_to_int(img, bboxes, PIL=False):
+    if PIL:
+        height, width = img.size[1], img.size[0]
+    else:
+        height, width = img.shape[0], img.shape[1]
+    x_cntr, y_cntr, w, h = bboxes
+    x_cntr, w = int(x_cntr * width), int(w * width)
+    y_cntr, h = int(y_cntr * height), int(h * height)
+
+    return x_cntr, y_cntr, w, h
+
+
 def draw_classes(img, bboxes, w_class_list, detect_dir, color=(255, 0, 0), text_color=(255, 255, 0), thickness=2):
     """
     Функция подсчета общей площади бревен
@@ -264,11 +277,8 @@ def draw_classes(img, bboxes, w_class_list, detect_dir, color=(255, 0, 0), text_
     на выход: изображение с отметкой бревна и площадь бревна
     """
 
-    height, width = img.shape[0], img.shape[1]
     for i in range(len(bboxes)):
-        x_cntr, y_cntr, w, h = bboxes[i]
-        x_cntr, w = int(x_cntr * width), int(w * width)
-        y_cntr, h = int(y_cntr * height), int(h * height)
+        x_cntr, y_cntr, w, h = bboxes_to_int(img, bboxes[i], PIL=False)
 
         center_coordinates = (int(x_cntr), int(y_cntr))
 
@@ -295,9 +305,208 @@ def draw_classes(img, bboxes, w_class_list, detect_dir, color=(255, 0, 0), text_
     img_edited.save(detect_dir + f'/wood_classes.png')
 
 
-def find_nearest(a, a0):
+def find_nearest(arr, value, ret='value', amt=3):
     """
-    Поиск элемента в массиве `a` ближайшего к скаляру `a0`
+    Поиск элемента в массиве `arr` ближайшего к скаляру `value`
     """
-    idx = np.abs(a - a0).argmin()
-    return a.flat[idx]
+
+    diff_arr = np.abs(arr - value)
+    sorted_arr = sorted(list(np.abs(diff_arr)))
+
+    idx = [list(diff_arr).index(sorted_arr[i]) for i in range(amt)]
+
+    if ret == 'value':
+        return arr[idx]
+    elif ret == 'idx':
+        return idx
+
+
+def compare_tables(df_1, df_2, margin=0.05):
+    """
+    Функция возвращает словарь, в котором сопоставляются древесина с 1й картинки(датафрейма df_1), древесине со 2й
+    картинки(датафрейма df_2).
+    param df_1: Датафрейм первой картинки
+    param df_2: Датафрейм второй картинки
+    param margin: диапазон поиска бревен на 1й картинке в процентах от значения площади конкретного бревна на
+    2й картинке
+    :return: словарь, сопоставляющий бревна 1й и 2й картинок
+    """
+
+    areas_list_1 = df_1['area, dm2'].values
+    classes_list_1 = df_1['wood class'].values
+
+    areas_list_2 = df_2['area, dm2'].values
+    classes_list_2 = df_2['wood class'].values
+
+    matching_dict = {}
+
+    for num, el in enumerate(areas_list_2):
+        idx = np.argwhere((areas_list_1 > el * (1 - margin)) & (areas_list_1 < el * (1 + margin)))
+        idx = idx[classes_list_2[num] == classes_list_1[idx]]  # оставляем полено, которое подходит по классу
+        s_nearest = find_nearest(areas_list_1[idx],
+                                 areas_list_2[num])  # если более 1го полена, то берем то, которое ближе по площади
+        idx = np.argwhere(areas_list_1 == s_nearest)[0][0]  # ищем индекс нашей площади в начальном списке
+
+        matching_dict[num] = idx
+
+    return matching_dict
+
+
+def draw_ellipses(img, bboxes, color_box, color_text, thickness, num):
+    x_cntr, y_cntr, w, h = bboxes_to_int(img, bboxes, PIL=False)
+
+    # x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
+    # center_coordinates = (x_cntr, y_cntr)
+
+    a, b = int(w / 2), int(h / 2)
+    axes_length = (a, b)
+
+    cv2.ellipse(img, center_coordinates, axes_length, angle=0, startAngle=0, endAngle=360, color=color_box,
+                thickness=thickness)
+
+    fsc = 0.8
+    ((text_width, text_height), _) = cv2.getTextSize(str(num), cv2.FONT_HERSHEY_SIMPLEX, fsc, 1)
+    cv2.putText(
+        img,
+        text=f'{num}',
+        org=(x_cntr - int(text_width / 2), y_cntr + int(0.5 * text_height)),
+        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+        fontScale=fsc,
+        color=color_text,
+        lineType=cv2.LINE_AA
+    )
+
+
+def draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict, color_box=(0, 0, 255),
+                       color_text=(255, 255, 255), thickness=2):
+    """
+    Функция рисования номеров бревен
+    на вход: изображения, датафреймы с данными, спи
+    на выход: изображение с отметкой бревна и площадь бревна
+    """
+    bboxes_1 = []
+
+    for el in df_1['bbox'].values:
+        el = el.strip('[]').strip()
+        el = re.findall(r'0\.\d{0,5}', el)
+        bboxes_1.append(list(map(float, el)))
+
+    bboxes_2 = []
+
+    for el in df_2['bbox'].values:
+        el = el.strip('[]').strip()
+        el = re.findall(r'0\.\d{0,5}', el)
+        bboxes_2.append(list(map(float, el)))
+
+    img_1 = cv2.imread(img_dir_1)
+    img_2 = cv2.imread(img_dir_2)
+
+    drawn_woods_2pic = []
+    count = 0
+
+    for i in range(len(bboxes_1)):
+        draw_ellipses(img_1, bboxes_1[i], color_box, color_text, thickness, num=i)
+
+        try:
+            idx_same_wood = matching_dict[i]
+            if idx_same_wood not in drawn_woods_2pic:
+                draw_ellipses(img_2, bboxes_2[idx_same_wood], color_box, color_text, thickness, num=i)
+                count += 1
+                drawn_woods_2pic.append(
+                    idx_same_wood)  # костыль, чтобы не рисовать бревна, назначенные дважды. Исправить позже.
+        except KeyError:
+            print('Не нашли подходящего бревна')
+            continue
+
+    percentage_same = round(100 * count / len(df_1), 2)
+
+    return img_1, img_2, percentage_same
+
+
+def get_bbox_from_df(df_bbox_values):
+    """
+    param df_bbox_values: df['bbox'].values
+    return: list of bbox coordinates
+    """
+    bboxes = []
+
+    for el in df_bbox_values:
+        el = el.strip('[]').strip()
+        el = re.findall(r'0\.\d{0,5}', el)
+        bboxes.append(list(map(float, el)))
+
+    return bboxes
+
+
+def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim):
+    model = load_model(model_path)
+
+    img_1 = Image.open(img_dir_1)
+    img_2 = Image.open(img_dir_2)
+
+    bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
+    bboxes_2 = get_bbox_from_df(df_2['bbox'].values)
+
+    crops_1 = []
+    crops_2 = []
+    match_dict = {}
+
+    for i in range(len(df_1)):
+        match = []
+
+        x_cntr, y_cntr, w, h = bboxes_to_int(img_1, bboxes_1[i], PIL=True)
+        x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
+
+        # img_crop_1 = img_1[y_min:y_max, x_min:x_max] # height, width // cv2 crop
+        img_crop_1 = img_1.crop((x_min, y_min, x_max, y_max))
+        img_crop_1 = ImageOps.fit(img_crop_1, dim, Image.ANTIALIAS)
+        crops_1.append(img_crop_1)
+
+        img_crop_1 = np.array(img_crop_1)
+
+        if i == 0:
+            for j in range(len(df_2)):
+                x_cntr, y_cntr, w, h = bboxes_to_int(img_2, bboxes_2[j], PIL=True)
+                x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(
+                    y_cntr + h / 2)
+
+                img_crop_2 = img_2.crop((x_min, y_min, x_max, y_max))
+
+                img_crop_2 = ImageOps.fit(img_crop_2, dim, Image.ANTIALIAS)
+                crops_2.append(img_crop_2)
+
+        for j in range(len(df_2)):
+            img_crop_2 = np.array(crops_2[j])
+
+            result = model.predict([np.expand_dims(img_crop_1, 0), np.expand_dims(img_crop_2, 0)])
+            match.extend(result)
+
+        possible_match_idx = [match.index(sorted(match)[-k]) for k in
+                              range(3)]  # берем топ 3 совпадения по выходу нейронки (мб фильтрануть по точности > 0.9)
+
+        possible_areas = find_nearest(df_2['area, dm2'].values, df_1['area, dm2'][i], ret='idx', amt=3)
+        for m in range(len(possible_match_idx)):
+            # проверяем, есть ли среди ближайших значений площадей из df_2 те же индексы, что и при
+            # проверке на соответствие картинок
+            if possible_match_idx[m] in possible_areas:
+                idx_win = possible_match_idx[m]
+                break
+            else:
+                idx_win = None
+        # этот блок в теории можно использовать, как первый фильтр. Тогда не полностью исп. фильтр по площади(не рек.)
+        if idx_win == None:
+            p_areas = np.array([df_2['area, dm2'][idx] for idx in possible_match_idx])
+            # ищем ближайшие площади к искомой среди топа выхода нейронки
+            idx_win = possible_match_idx[list(p_areas).index(find_nearest(p_areas, df_1['area, dm2'][i], ret='value',
+                                                                          amt=1))]
+
+        # h = 1
+        # while idx_win in match_dict.values(): #если индекс уже присвоен какому-то бревну
+        #   idx_win = match.index(sorted(match)[-h]) #присваиваем текущему бревну след. индексы по выходу нейронки
+        #   h+=1
+        # лучше не использовать. Надо подумать
+
+        match_dict[i] = idx_win
+
+    return match_dict
+
