@@ -108,11 +108,11 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
 
 
 def get_difference(img_dir_1, img_dir_2, weights_yolov5, weights_class, weights_compare, path_save):
-    df_1, img_edited_1, _, _, _, _, _ = predict_timber(weights_yolov5, weights_class, img_dir_1,
-                                                       path_save, w_length=1)
+    df_1, img_edited_1, _, _, _, _, _ = predict_timber(1, weights_yolov5, weights_class, img_dir_1,
+                                                       path_save)
 
-    df_2, img_edited_2, _, _, _, _, _ = predict_timber(weights_yolov5, weights_class, img_dir_2,
-                                                       path_save, w_length=1)
+    df_2, img_edited_2, _, _, _, _, _ = predict_timber(1, weights_yolov5, weights_class, img_dir_2,
+                                                       path_save)
 
     matching_dict = compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path=weights_compare, dim=(64, 64))
 
