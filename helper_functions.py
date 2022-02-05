@@ -3,6 +3,8 @@ import re
 
 import cv2
 import numpy as np
+import tensorflow
+from tensorflow.keras.models import load_model
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
@@ -356,7 +358,7 @@ def draw_ellipses(img, bboxes, color_box, color_text, thickness, num):
     x_cntr, y_cntr, w, h = bboxes_to_int(img, bboxes, PIL=False)
 
     # x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
-    # center_coordinates = (x_cntr, y_cntr)
+    center_coordinates = (x_cntr, y_cntr)
 
     a, b = int(w / 2), int(h / 2)
     axes_length = (a, b)
