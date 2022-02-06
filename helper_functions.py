@@ -478,7 +478,7 @@ def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim, acc_margin
 
         possible_match_idx = [match.index(top_3[i]) for i in range(len(top_3)) if
                               top_3[i] > acc_margin]  # берем топ 3 совпадения по выходу нейронки c acc > acc_margin)
-        print(possible_match_idx)
+
         possible_areas = find_nearest(df_2['area, dm2'].values, df_1['area, dm2'][i], ret='idx', amt=3)
         if len(possible_match_idx) > 0:
 
