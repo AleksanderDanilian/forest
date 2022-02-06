@@ -386,19 +386,8 @@ def draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict, color_bo
     на вход: изображения, датафреймы с данными, спи
     на выход: изображение с отметкой бревна и площадь бревна
     """
-    bboxes_1 = []
-
-    for el in df_1['bbox'].values:
-        el = el.strip('[]').strip()
-        el = re.findall(r'0\.\d{0,5}', el)
-        bboxes_1.append(list(map(float, el)))
-
-    bboxes_2 = []
-
-    for el in df_2['bbox'].values:
-        el = el.strip('[]').strip()
-        el = re.findall(r'0\.\d{0,5}', el)
-        bboxes_2.append(list(map(float, el)))
+    bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
+    bboxes_2 = get_bbox_from_df(df_2['bbox'].values)
 
     img_1 = cv2.imread(img_dir_1)
     img_2 = cv2.imread(img_dir_2)
@@ -409,16 +398,18 @@ def draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict, color_bo
     for i in range(len(bboxes_1)):
         draw_ellipses(img_1, bboxes_1[i], color_box, color_text, thickness, num=i)
 
-        try:
-            idx_same_wood = matching_dict[i]
-            if idx_same_wood not in drawn_woods_2pic:
-                draw_ellipses(img_2, bboxes_2[idx_same_wood], color_box, color_text, thickness, num=i)
-                count += 1
-                drawn_woods_2pic.append(
-                    idx_same_wood)  # костыль, чтобы не рисовать бревна, назначенные дважды. Исправить позже.
-        except KeyError:
-            print('Не нашли подходящего бревна')
-            continue
+        if matching_dict[i] != 'нет_совпадений':
+
+            try:
+                idx_same_wood = matching_dict[i]
+                if idx_same_wood not in drawn_woods_2pic:
+                    draw_ellipses(img_2, bboxes_2[idx_same_wood], color_box, color_text, thickness, num=i)
+                    count += 1
+                    drawn_woods_2pic.append(
+                        idx_same_wood)  # костыль, чтобы не рисовать бревна, назначенные дважды. Исправить позже.
+            except KeyError:
+                print('Не нашли подходящего бревна')
+                continue
 
     percentage_same = round(100 * count / len(df_1), 2)
 
@@ -440,7 +431,7 @@ def get_bbox_from_df(df_bbox_values):
     return bboxes
 
 
-def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim):
+def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim, acc_margin):
     model = load_model(model_path)
 
     img_1 = Image.open(img_dir_1)
@@ -483,30 +474,28 @@ def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim):
             result = model.predict([np.expand_dims(img_crop_1, 0), np.expand_dims(img_crop_2, 0)])
             match.extend(result)
 
-        possible_match_idx = [match.index(sorted(match)[-k]) for k in
-                              range(3)]  # берем топ 3 совпадения по выходу нейронки (мб фильтрануть по точности > 0.9)
+        top_3 = [sorted(match)[-k] for k in range(1, 4)]
 
+        possible_match_idx = [match.index(top_3[i]) for i in range(len(top_3)) if
+                              top_3[i] > acc_margin]  # берем топ 3 совпадения по выходу нейронки c acc > acc_margin)
+        print(possible_match_idx)
         possible_areas = find_nearest(df_2['area, dm2'].values, df_1['area, dm2'][i], ret='idx', amt=3)
-        for m in range(len(possible_match_idx)):
-            # проверяем, есть ли среди ближайших значений площадей из df_2 те же индексы, что и при
-            # проверке на соответствие картинок
-            if possible_match_idx[m] in possible_areas:
-                idx_win = possible_match_idx[m]
-                break
-            else:
-                idx_win = None
-        # этот блок в теории можно использовать, как первый фильтр. Тогда не полностью исп. фильтр по площади(не рек.)
-        if idx_win == None:
-            p_areas = np.array([df_2['area, dm2'][idx] for idx in possible_match_idx])
-            # ищем ближайшие площади к искомой среди топа выхода нейронки
-            idx_win = possible_match_idx[list(p_areas).index(find_nearest(p_areas, df_1['area, dm2'][i], ret='value',
-                                                                          amt=1))]
+        if len(possible_match_idx) > 0:
 
-        # h = 1
-        # while idx_win in match_dict.values(): #если индекс уже присвоен какому-то бревну
-        #   idx_win = match.index(sorted(match)[-h]) #присваиваем текущему бревну след. индексы по выходу нейронки
-        #   h+=1
-        # лучше не использовать. Надо подумать
+            for m in range(len(possible_match_idx)):
+                # проверяем, есть ли среди ближ. знач площадей из df_2 те же индексы, что и при проверке на соответствие картинок
+                if possible_match_idx[m] in possible_areas:
+                    idx_win = possible_match_idx[m]
+                    break
+                else:
+                    idx_win = None
+            if idx_win == None:
+                p_areas = np.array([df_2['area, dm2'][idx] for idx in possible_match_idx])
+                idx_win = possible_match_idx[list(p_areas).index(
+                    find_nearest(p_areas, df_1['area, dm2'][i], ret='value',
+                                 amt=1))]  # ищем ближайшие площади к искомой среди топа выхода нейронки
+        else:
+            idx_win = 'нет_совпадений'
 
         match_dict[i] = idx_win
 
