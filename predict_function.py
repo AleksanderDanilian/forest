@@ -8,6 +8,7 @@ from shapely.geometry import Polygon
 from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS, draw_classes, \
     find_nearest, compare_images, draw_matching_bbox
 from tensorflow.keras.models import load_model
+from google.colab.patches import cv2_imshow
 
 
 def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
@@ -77,6 +78,7 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     for i in range(len(bboxes)):
         cropped_img = prepare_crops(img_dir, bboxes[i], os.path.join(detect_dir, 'crops'), f'{i}.png',
                                     resize_dim=(32, 32), res_type='zoom', normalize=False)
+        cv2_imshow(cropped_img)
         w_class = w_classes[np.argmax(model.predict(np.expand_dims(cropped_img, axis=0)))]
         w_class_list.append(w_class)
 
