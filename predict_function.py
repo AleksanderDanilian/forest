@@ -12,7 +12,7 @@ from google.colab.patches import cv2_imshow
 
 
 def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
-                   conf=0.7, bbox_type='ellipse', final_wide=800, iou_thr=0.8):
+                   conf=0.7, bbox_type='ellipse', final_wide=800, iou_thr=0.45):
     """ Основная функция. Находит и рассчитывает площадь номера.
     Предсказывает координаты и размер бревен, рассчитывает площадь бревен.
     на вход:
