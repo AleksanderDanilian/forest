@@ -12,7 +12,7 @@ from google.colab.patches import cv2_imshow
 
 
 def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
-                   conf=0.7, bbox_type='ellipse', final_wide=800, iou_thr=0.8, custom_nms_c=0.05, custom_nms_s=0.02):
+                   conf=0.7, bbox_type='ellipse', final_wide=800, iou_thr=0.8):
     """ Основная функция. Находит и рассчитывает площадь номера.
     Предсказывает координаты и размер бревен, рассчитывает площадь бревен.
     на вход:
@@ -49,15 +49,6 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     bboxes = bbox_array[:, 1:]
-
-    # аналог nms - убираем bboxes, дублирующие существуюшие
-    to_drop = []
-    for i in range(len(bboxes)):
-        for j in range(i + 1, len(bboxes)):
-            if abs(bboxes[i][0] - bboxes[j][0]) < custom_nms_c and abs(bboxes[i][1] - bboxes[j][1]) < custom_nms_c and \
-                    abs(bboxes[i][2]-bboxes[j][2]) < custom_nms_s and abs(bboxes[i][3]-bboxes[j][3]) < custom_nms_s:
-                to_drop.append(i)
-    bboxes = np.delete(bboxes, to_drop, axis=0)
 
     # функция распознавания номера
     plate, text_arr = plate_detector(image)
