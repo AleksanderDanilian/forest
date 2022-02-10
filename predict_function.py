@@ -12,7 +12,7 @@ from google.colab.patches import cv2_imshow
 
 
 def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
-                   conf=0.7, bbox_type='ellipse', final_wide=800):
+                   conf=0.7, bbox_type='ellipse', final_wide=800, iou_thr=0.8):
     """ Основная функция. Находит и рассчитывает площадь номера.
     Предсказывает координаты и размер бревен, рассчитывает площадь бревен.
     на вход:
@@ -36,7 +36,8 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     # запуск предсказание yolo
     path_to_detect_py = '/content/forest/yolov5/detect.py'
     os.system(
-        f"python {path_to_detect_py} --weights {weights_yolov5} --img 640 --save-txt --conf {conf} --source {img_dir}")
+        f"python {path_to_detect_py} --weights {weights_yolov5} --img 640 --save-txt --conf {conf} --source {img_dir} "
+        f"--iou-thres {iou_thr}")
 
     # определение папки с последним предсказанием yolo в папке /content/yolov5/runs/detect
     detect_dir = max([os.path.join(path_save, dir) for dir in os.listdir(path_save)], key=os.path.getctime)
