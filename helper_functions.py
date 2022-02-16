@@ -501,3 +501,14 @@ def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim, acc_margin
 
     return match_dict
 
+
+def check_image(IMG_DIR):
+
+  image = Image.open(IMG_DIR)
+  sh = np.array(image).shape
+  if sh[2] == 4:
+    rgb_image = image.convert('RGB')
+    rgb_image.save(IMG_DIR)
+    print('Пересохранили картинку в RGB')
+  else:
+    print('Картинка уже в нужном формате')
