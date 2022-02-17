@@ -383,7 +383,7 @@ def draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict, color_bo
                        color_text=(255, 255, 255), thickness=2):
     """
     Функция рисования номеров бревен
-    на вход: изображения, датафреймы с данными, спи
+    на вход: изображения, датафреймы с данными, список сопоставлений бревен из разных датафреймов
     на выход: изображение с отметкой бревна и площадь бревна
     """
     bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
@@ -503,12 +503,18 @@ def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim, acc_margin
 
 
 def check_image(IMG_DIR):
+    image = Image.open(IMG_DIR)
+    sh = np.array(image).shape
+    if sh[2] == 4:
+        rgb_image = image.convert('RGB')
+        rgb_image.save(IMG_DIR)
+        print('Пересохранили картинку в RGB')
+    else:
+        print('Картинка уже в нужном формате')
 
-  image = Image.open(IMG_DIR)
-  sh = np.array(image).shape
-  if sh[2] == 4:
-    rgb_image = image.convert('RGB')
-    rgb_image.save(IMG_DIR)
-    print('Пересохранили картинку в RGB')
-  else:
-    print('Картинка уже в нужном формате')
+
+def check_save_dir():
+    detect_dir = max([os.path.join('/content/forest/yolov5/runs/detect', f_name) for
+                      f_name in os.listdir('/content/forest/yolov5/runs/detect')], key=os.path.getctime)
+
+    return detect_dir
