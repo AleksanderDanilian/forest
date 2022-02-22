@@ -770,7 +770,7 @@ def make_pile_model(x1_train, x2_train, y_train, x1_test, x2_test, y_test, nr_wo
     com = layers.Dropout(0.1)(con)
     output = layers.Dense(1, activation='sigmoid')(con)
 
-    model = tf.keras.Model([input_1, input_2], output, name="my_model")
+    model = tensorflow.keras.Model([input_1, input_2], output, name="my_model")
 
     model.compile(optimizer=Adam(0.001), loss='binary_crossentropy', metrics=['accuracy'])
 
