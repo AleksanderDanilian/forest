@@ -35,9 +35,19 @@ PLATE_AREA = 5.2 * 1.1
 def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='ellipse'):
     """
     Функция подсчета общей площади бревен
-    на вход: изображение, bbox
-    на выход: изображение с отметкой бревна и площадь бревна
+    :param img - изображение (numpy array)
+    :param bbox - выход YOLO, bounding box бревна
+    :param area - площадь номерного знака в пикселях
+    :param color - цвет рамки bbox
+    :param thickness - толщина рамки
+    :param bbox_type - тип рамки
+
+    :return
+    img - изображение с отметкой бревна (numpy array)
+    timb_area - площадь бревна
+    scale_sq - масштаб изображения
     """
+
     x_cntr, y_cntr, w, h = map(int, bbox)  # координаты центров и размеры рамок
     x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
     center_coordinates = (x_cntr, y_cntr)
@@ -79,9 +89,18 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
 def visualize(image, bboxes, area=0, bbox_type='ellipse'):
     """
     Функция подсчета общей площади бревен
-    на вход: изображение
-    на выход: координаты углов и результат распознавания номера
+
+    :param image - изображение (numpy array)
+    :param bboxes - выход YOLO, список координат бревен
+    :param area - площадь номерного знака в пикселях
+    :param bbox_type - тип рамки
+
+    :return
+    img - размеченное изображение (numpy array)
+    area_list - список площадей бревен
+    scale_sq - масштаб изображения
     """
+
     img = image.copy()
     bbxs = bboxes.copy()
     area_list = []  # список площадей каждого бревна
@@ -121,8 +140,11 @@ os.chdir('/content/forest')
 def plate_detector(img):
     """
     Функция распознавания номера
-    на вход: изображение
-    на выход: координаты углов и результат распознавания номера
+    :param img - изображение
+
+    :return
+    all_points - координаты углов
+    text_arr - результат распознавания номера (str)
     """
 
     target_boxes = detector.detect_bbox(img)
@@ -149,7 +171,15 @@ def plate_detector(img):
 def crop_center(pil_img, crop_width: int, crop_height: int) -> Image:
     """
     Функция для обрезки изображения по центру.
+
+    :param pil_img - изображение, открытое через PIL
+    :param crop_width - ширина обрезки (кол-во пикселей, которое хотим срезать вдоль оси x)
+    :param crop_height - высота обрезки (кол-во пикселей, которое хотим срезать вдоль оси y)
+
+    :return
+    обрезанное изображение
     """
+
     img_width, img_height = pil_img.size
     return pil_img.crop(((img_width - crop_width) // 2,
                          (img_height - crop_height) // 2,
@@ -159,12 +189,16 @@ def crop_center(pil_img, crop_width: int, crop_height: int) -> Image:
 
 def thumbnail(pil_img, dims):
     """
-    Функция для обрезки изображения по наибольшему размеру.
-    На вход: изображение
-    На выход: квадратное изображение размером (dims, dims) без искажения исходного отношения высоты и ширины.
-    Пустоты залиты черным цветом.
+    Функция для обрезки изображения по наибольшему размеру с срхранением пропорций.
 
+    :param pil_img - изображение, открытое через PIL
+    :param dims - требуемые размеры итогового изображения
+
+    :return
+    img - квадратное изображение размером (dims, dims) без искажения исходного отношения высоты и ширины.
+    Пустоты залиты черным цветом.
     """
+
     img_w, img_h = pil_img.size[0], pil_img.size[1]
     max_val = np.argmax([img_w, img_h])
     scale = pil_img.size[max_val] / dims
@@ -185,11 +219,19 @@ def thumbnail(pil_img, dims):
 def prepare_crops(img_dir, bbox, save_path, file_name,
                   resize_dim=(64, 64), res_type='zoom', normalize=False):
     """
-    функция подготавливает вырезанные bbox для
-    подачи в модель по классификации изображений
-    и сохраняет нарезки изображений в папку
-    на вход: стартовое изображение, bbox
-    на выход: numpy array, готовый для подачи в модель
+    функция подготавливает вырезанные bbox для подачи в модель по классификации изображений
+    и сохраняет нарезки изображений в папку.
+
+    :param img_dir - путь, где хранится изображение
+    :param bbox - bounding box - выход YOLO для одного бревна
+    :param save_path - путь для сохранения результатов обрезанных изрбражений
+    :param file_name - имя файла для сохранения
+    :param resize_dim - размеры обрезки изображения перед подачей в нейронку
+    :param res_type - тип обрезки изображения (str - 'stretch', 'zoom' или 'thumbnail')
+    :param normalize - нормализация изображения (boolean)
+
+    :return
+    resized_image - изображение, подготовленное для подачи в нейронку по сравнению бревен (numpy array)
     """
 
     image = Image.open(img_dir)
@@ -219,38 +261,50 @@ def prepare_crops(img_dir, bbox, save_path, file_name,
 def calc_stack_geometry(bboxes, scale_sq, img_dir):
     """
     Функция находит геометрические размеры штабеля
-    с древесиной
-    на вход: все bboxes, размеры номера
-    на выход: координаты рамки, высота, ширина
+    с древесиной.
+    :param bboxes - bounding boxes - выход YOLO
+    :param scale_sq - масштаб изображения (дм/pixel)**2
+    :param img_dir - директория, где хранится изображение
+
+    :return
+    stack_width - ширина штабеля в см
+    stack_height - высота штабеля в см
+    x_min, y_min, x_max, y_max - координаты рамки, ограничивающей штабель
+    width, height - размеры изображения в пикселях
+
     """
     image = Image.open(img_dir)
     width, height = image.size
 
-    xMin, yMin, xMax, yMax = width, height, 0, 0
+    x_min, y_min, x_max, y_max = width, height, 0, 0
     for i in range(len(bboxes)):
         xc, yc, w, h = bboxes[i]
         crop_box = [int(xc * width - w * width / 2), int(yc * height - h * height / 2), int(xc * width + w * width / 2),
                     int(yc * height + h * height / 2)]
-        if crop_box[0] < xMin:  # левый верхний угол
-            xMin = crop_box[0]
-        if crop_box[1] < yMin:  # левый верхний угол
-            yMin = crop_box[1]
-        if crop_box[2] > xMax:  # правый нижний угол
-            xMax = crop_box[2]
-        if crop_box[3] > yMax:  # правый нижний угол
-            yMax = crop_box[3]
+        if crop_box[0] < x_min:  # левый верхний угол
+            x_min = crop_box[0]
+        if crop_box[1] < y_min:  # левый верхний угол
+            y_min = crop_box[1]
+        if crop_box[2] > x_max:  # правый нижний угол
+            x_max = crop_box[2]
+        if crop_box[3] > y_max:  # правый нижний угол
+            y_max = crop_box[3]
 
     scale = 10 * math.sqrt(scale_sq)  # линейный масштаб cм/pixel (был дм2/pixel2)
 
-    stack_height = (yMax - yMin) * scale
-    stack_width = (xMax - xMin) * scale
+    stack_height = (y_max - y_min) * scale
+    stack_width = (x_max - x_min) * scale
 
-    return stack_width, stack_height
+    return stack_width, stack_height, x_min, y_min, x_max, y_max, width, height
 
 
 def get_GPS(img_dir):
     """
-    Функция извлекает геоданные из фотографии, если они там есть
+    Функция извлекает геоданные из фотографии, если они там есть.
+    :param img_dir - директория с изображением
+
+    :return
+    gps_coords - координаты gps - широта и долгота
     """
     data = gpsphoto.getGPSData(img_dir)
     if data != {}:
@@ -261,6 +315,16 @@ def get_GPS(img_dir):
 
 
 def bboxes_to_int(img, bboxes, PIL=False):
+    """
+    Функция переводит координаты bounding boxes из относительных величин
+    в абсолютные.
+    :param img: изображение (numpy array или PIL)
+    :param bboxes: bounding boxes - выход YOLO
+    :param PIL: если открывали изображение через PIL, то PIL = True
+
+    :return:
+    x_cntr, y_cntr, w, h - координаты центра рамки, ширина и высота рамки
+    """
     if PIL:
         height, width = img.size[1], img.size[0]
     else:
@@ -274,9 +338,15 @@ def bboxes_to_int(img, bboxes, PIL=False):
 
 def draw_classes(img, bboxes, w_class_list, detect_dir, color=(255, 0, 0), text_color=(255, 255, 0), thickness=2):
     """
-    Функция подсчета общей площади бревен
-    на вход: изображение, bbox
-    на выход: изображение с отметкой бревна и площадь бревна
+    Функция вырисовки классов бревен на изображении. Сохраняет изображение wood_classes.png с классами в detect_dir.
+
+    :param img: изображение, открытрое через PIL или cv2
+    :param bboxes: bounding boxes - выход YOLO
+    :param w_class_list: список классифицированных бревен (соотнесен по порядку с нумерацией bboxes)
+    :param detect_dir: расположение папки, в которую будем сохранять файл с классификацией бревен
+    :param color: цвет рамки
+    :param text_color: цвет текста внутри рамки
+    :param thickness: толщина рамки
     """
 
     for i in range(len(bboxes)):
@@ -309,7 +379,16 @@ def draw_classes(img, bboxes, w_class_list, detect_dir, color=(255, 0, 0), text_
 
 def find_nearest(arr, value, ret='value', amt=3):
     """
-    Поиск элемента в массиве `arr` ближайшего к скаляру `value`
+    Поиск элемента в массиве `arr` ближайшего к скаляру `value`.
+
+    :param arr: массив, в котором осуществляется поиск
+    :param value: значение, близкое к которому мы будем искать в массиве arr
+    :param ret: что возвращает функция - value(str: value) или index (str: idx) элемента в массиве arr
+    :param amt: кол-во элементов, которые заберем из массива arr, наиболее близких к value
+
+    :return:
+    idx - индекс элемента массива arr, наиболее близкого к value
+    arr[idx] - значение элемента массива arr, наиболее близкого к value
     """
 
     diff_arr = np.abs(arr - value)
@@ -327,10 +406,12 @@ def compare_tables(df_1, df_2, margin=0.05):
     """
     Функция возвращает словарь, в котором сопоставляются древесина с 1й картинки(датафрейма df_1), древесине со 2й
     картинки(датафрейма df_2).
-    param df_1: Датафрейм первой картинки
-    param df_2: Датафрейм второй картинки
-    param margin: диапазон поиска бревен на 1й картинке в процентах от значения площади конкретного бревна на
+
+    :param df_1: Датафрейм первой картинки
+    :param df_2: Датафрейм второй картинки
+    :param margin: диапазон поиска бревен на 1й картинке в процентах от значения площади конкретного бревна на
     2й картинке
+
     :return: словарь, сопоставляющий бревна 1й и 2й картинок
     """
 
@@ -355,9 +436,19 @@ def compare_tables(df_1, df_2, margin=0.05):
 
 
 def draw_ellipses(img, bboxes, color_box, color_text, thickness, num):
+    """
+    Функция рисует рамки(эллипсы) на картинках.
+
+    :param img: изображение в формате Numpy array
+    :param bboxes: bounding boxes - выход YOLO
+    :param color_box: цвет рамок
+    :param color_text: цвет текста внутри рамки
+    :param thickness: толщина рамок
+    :param num: номер бревна
+    """
+
     x_cntr, y_cntr, w, h = bboxes_to_int(img, bboxes, PIL=False)
 
-    # x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
     center_coordinates = (x_cntr, y_cntr)
 
     a, b = int(w / 2), int(h / 2)
@@ -382,10 +473,22 @@ def draw_ellipses(img, bboxes, color_box, color_text, thickness, num):
 def draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict, color_box=(0, 0, 255),
                        color_text=(255, 255, 255), thickness=2):
     """
-    Функция рисования номеров бревен
-    на вход: изображения, датафреймы с данными, список сопоставлений бревен из разных датафреймов
-    на выход: изображение с отметкой бревна и площадь бревна
+    Функция рисования номеров бревен на 1 и 2 картинках.
+
+    :param img_dir_1: директория 1го изображения
+    :param img_dir_2: директория 2го изображения
+    :param df_1: первый датафрейм (выход функции predict_timber() для 1й картинки)
+    :param df_2: второй датафрейм (выход функции predict_timber() для 2й картинки)
+    :param matching_dict: словарь, сопоставляющий бревна с первой картинки бревнам со второй (согласно их порядку в df)
+    :param color_box: цвет рамок
+    :param color_text: цвет текста
+    :param thickness: толщина рамок
+    :return:
+    img_1 - 1е изображение без изменений (после predict_timber())
+    img_2 - 2е изображение с нумерацией бревен, соответсвующее определенным в ходе работы НС парам бревен.
+    percentage_same - процент бревен 1й картинки, найденных на второй картинке
     """
+
     bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
     bboxes_2 = get_bbox_from_df(df_2['bbox'].values)
 
@@ -418,8 +521,12 @@ def draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict, color_bo
 
 def get_bbox_from_df(df_bbox_values):
     """
-    param df_bbox_values: df['bbox'].values
-    return: list of bbox coordinates
+    Функция получения bboxes в числовом формате из pandas df.
+
+    :param df_bbox_values: df['bbox'].values
+
+    :return:
+    bboxes - list of bbox coordinates
     """
     bboxes = []
 
@@ -432,6 +539,22 @@ def get_bbox_from_df(df_bbox_values):
 
 
 def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim, acc_margin):
+    """
+    Функция сравнения изображений лесовоза.
+
+    :param img_dir_1: директория первого изображения для операции сравнения
+    :param img_dir_2: директория второго изображения для операции сравнения
+    :param df_1: первый датафрейм (выход функции predict_timber() для 1й картинки)
+    :param df_2: второй датафрейм (выход функции predict_timber() для 2й картинки)
+    :param model_path: директория, в которой хранятся веса модели для сравнения картинок
+    :param dim: размеры картинки(каждого бревна) для сравнения
+    :param acc_margin: точность, ниже которой выход нейронки будет считаться недействительным (нейронка не нашла
+    совпадений по бревну с 1 картинки у бревен со второй картинки)
+
+    :return:
+    match_dict - словарь, сопоставляющий бревна с первой картинки бревнам со второй (согласно их порядку в df)
+    """
+
     model = load_model(model_path)
 
     img_1 = Image.open(img_dir_1)
@@ -502,7 +625,131 @@ def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim, acc_margin
     return match_dict
 
 
+def compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, dim, acc_margin, default_model_path, neighbours_list):
+    """
+    Функция сравнения изображений лесовоза с учетом расположения каждого бревна в штабеле. Нейронка здесь будет искать
+    похожие бревна на 2й картинке в определенном небольшом радиусе от расположения бревна на 1 картинке. Обе картинки
+    "отцентрованы" по координатам штабеля (максимальные и минимальные координаты штабеля). Если штабель во время перевозки
+    значительно изменил свою форму, этот метод может плохо отработать. В таком случае лучше использовать compare_images().
+    Также эта функция обучает нейронки с нуля для каждого бревна, поэтому обработка может занять много времени.
+
+    :param img_dir_1: директория первого изображения для операции сравнения
+    :param img_dir_2: директория второго изображения для операции сравнения
+    :param df_1: первый датафрейм (выход функции predict_timber() для 1й картинки)
+    :param df_2: второй датафрейм (выход функции predict_timber() для 2й картинки)
+    :param default_model_path: директория, в которой хранятся веса модели для сравнения картинок
+    :param dim: размеры картинки(каждого бревна) для сравнения
+    :param acc_margin: точность, ниже которой выход нейронки будет считаться недействительным (нейронка не нашла
+    совпадений по бревну с 1 картинки у бревен со второй картинки)
+    :param neighbours_list: список с бревнами - "соседями". Каждому бревну с 1й картинки выбираются близкие по
+    координатам бревна со 2й каотинки.
+
+    :return:
+    match_dict - словарь, сопоставляющий бревна с первой картинки бревнам со второй (согласно их порядку в df)
+    """
+    def_model = load_model(default_model_path)
+
+    img_1 = Image.open(img_dir_1)
+    img_2 = Image.open(img_dir_2)
+
+    bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
+    bboxes_2 = get_bbox_from_df(df_2['bbox'].values)
+
+    crops_1 = []
+    crops_2 = []
+    match_dict = {}
+    stat_res = []
+
+    # создадим resize подборку нарезанных каринок из 2й картинки
+    for j in range(len(df_2)):
+        x_cntr, y_cntr, w, h = bboxes_to_int(img_2, bboxes_2[j], PIL=True)
+        x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
+
+        img_crop_2 = img_2.crop((x_min, y_min, x_max, y_max))
+
+        img_crop_2 = ImageOps.fit(img_crop_2, dim, Image.ANTIALIAS)
+        crops_2.append(img_crop_2)
+        match = [[] for el in range(len(df_1))]
+
+    for i in range(len(df_1)):
+
+        x_cntr, y_cntr, w, h = bboxes_to_int(img_1, bboxes_1[i], PIL=True)
+        x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
+
+        img_crop_1 = img_1.crop((x_min, y_min, x_max, y_max))
+        img_crop_1 = ImageOps.fit(img_crop_1, dim, Image.ANTIALIAS)  # change to smart_resize?
+        crops_1.append(img_crop_1)
+
+        img_crop_1 = np.array(img_crop_1)
+
+    for i in range(len(df_1)):
+        def_model_res = []
+
+        x1_train, x2_train, y_train, x1_test, x2_test, y_test = get_train_batch(path=None, dim=(64, 64), im_id=i,
+                                                                                crops_1=crops_1)
+        model, status = make_pile_model(x1_train, x2_train, y_train, x1_test, x2_test, y_test, i)
+
+        stat_res.append(status)
+
+        # если модель успешно обучилась
+        if status == 'Success':
+
+            for j in neighbours_list[i]:
+                print(i)
+                print(neighbours_list[i])
+                img_crop_2 = np.array(crops_2[j])
+
+                result = model.predict([np.expand_dims(img_crop_1, 0), np.expand_dims(img_crop_2, 0)])
+                print(result)
+                print(result.shape)
+
+                match[i].append(result)
+
+        elif status == 'Fail':  # или по диаметру просто?
+
+            for j in neighbours_list[i]:
+                img_crop_2 = np.array(crops_2[j])
+
+                result = def_model.predict([np.expand_dims(img_crop_1, 0), np.expand_dims(img_crop_2, 0)])
+                def_model_res.extend(result)
+
+            top_3 = [sorted(def_model_res)[-k] for k in range(1, 4)]
+
+            possible_match_idx = [def_model_res.index(top_3[i]) for i in range(len(top_3)) if
+                                  top_3[i] > acc_margin]  # берем топ 3 совпадения по выходу нейронки c acc > 0.9)
+            print(possible_match_idx)
+            possible_areas = find_nearest(df_2['area, dm2'].values, df_1['area, dm2'][i], ret='idx', amt=3)
+            if len(possible_match_idx) > 0:
+                # проверяем, есть ли среди ближайших значений площадей из df_2 те же индексы,
+                # что и при проверке на соответствие картинок
+                for m in range(len(possible_match_idx)):
+                    if possible_match_idx[m] in possible_areas:
+                        idx_win = possible_match_idx[m]
+                        break
+                    else:
+                        idx_win = None
+                if idx_win == None:  # ищем ближайшие площади к искомой среди топа выхода нейронки
+                    p_areas = np.array([df_2['area, dm2'][idx] for idx in possible_match_idx])
+                    idx_win = possible_match_idx[list(p_areas).index(
+                        find_nearest(p_areas, df_1['area, dm2'][i], ret='value', amt=1))]  # выбираем 1
+            else:
+                idx_win = 'нет_совпадений'
+
+            match[i].append(idx_win)
+
+    for i, res in enumerate(match):
+        idx_best_res = neighbours_list[i][np.argmax(res)]
+        match_dict[i] = idx_best_res
+
+    return match_dict
+
+
 def check_image(IMG_DIR):
+    """
+    Функция проверки изображения на наличие 4 канала.
+    :param IMG_DIR: директория с изображением
+    """
+
     image = Image.open(IMG_DIR)
     sh = np.array(image).shape
     if sh[2] == 4:
@@ -514,7 +761,56 @@ def check_image(IMG_DIR):
 
 
 def check_save_dir():
+    """
+    Функция проверки директории для сохранения результатов работы нейронных сетей.
+    :return:
+    detect_dir - директория, где хранятся все результаты.
+    """
     detect_dir = max([os.path.join('/content/forest/yolov5/runs/detect', f_name) for
                       f_name in os.listdir('/content/forest/yolov5/runs/detect')], key=os.path.getctime)
 
     return detect_dir
+
+
+def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
+    """
+    Функция по поиску бревен - "соседей". Каждому бревну с 1й картинки выбираются близкие по координатам бревна со
+    2й каотинки.
+    
+    :param df_1: df первой картинки (от функции predict_timber())
+    :param df_2: df второй картинки (от функции predict_timber())
+    :param img_dir_1: ссылка на первую картинку
+    :param img_dir_2: ссылка на вторую картинку
+    :param rad: коэффициент поиска бревен j картинки 2 в радиусе rad * width и rad * height бревна
+    i картинки 1, где width и height - размеры бревна i. Обе картинки приведены к единой системе координат
+    на основе предположения, что перевозимый штабель древесины не менял своей геометрической формы и бревна не меняли
+    свое расположение внутри штабеля.
+
+    :return: neighbours_list - список бревен картинки 2, которые вероятно распологались рядом с искомым бревном картинки 1.
+    """
+
+    bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
+    _, _, x_min_1, y_min_1, x_max_1, y_max_1, width_1, height_1 = calc_stack_geometry(bboxes_1, img_dir_1)
+    for row in bboxes_1:
+        row[0] = row[0] - x_min_1 / width_1
+        row[1] = row[1] - y_min_1 / height_1
+
+    bboxes_2 = get_bbox_from_df(df_2['bbox'].values)
+    _, _, x_min_2, y_min_2, x_max_2, y_max_2, width_2, height_2 = calc_stack_geometry(bboxes_2, 1, img_dir_2)
+
+    for row in bboxes_2:
+        row[0] = row[0] - x_min_2 / width_2
+        row[1] = row[1] - y_min_2 / height_2
+
+    neighbours_list = []
+    for i in range(len(df_1)):
+        temp = []
+        xc_1, yc_1, w_1, h_1 = bboxes_1[i]
+        for j in range(len(df_2)):
+            xc_2, yc_2, w_2, h_2 = bboxes_2[j]
+            if (xc_2 * width_2 - rad * w_2 * width_2 < xc_1 * width_1 < xc_2 * width_2 + rad * w_2 * width_2) and \
+                    (yc_2 * height_2 - rad * h_2 * height_2 < yc_1 * height_1 < yc_2 * height_2 + rad * h_2 * height_2):
+                temp.append(j)
+        neighbours_list.append(temp)
+
+    return neighbours_list

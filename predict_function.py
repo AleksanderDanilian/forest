@@ -6,27 +6,28 @@ from PIL import Image
 import numpy as np
 from shapely.geometry import Polygon
 from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS, draw_classes, \
-    find_nearest, compare_images, draw_matching_bbox
+    find_nearest, compare_images, draw_matching_bbox, compare_images_geofilter, get_neighbour_list
 from tensorflow.keras.models import load_model
 from google.colab.patches import cv2_imshow
 
 
 def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
                    conf=0.7, bbox_type='ellipse', final_wide=800, iou_thr=0.45):
-    """ Основная функция. Находит и рассчитывает площадь номера.
+    """
+    Основная функция. Находит и рассчитывает площадь номера.
     Предсказывает координаты и размер бревен, рассчитывает площадь бревен.
-    на вход:
-    img_dir - путь к изображению
-    w_length - длина древесины
-    weighns_yolov5 - обученные веса yolo
-    weighns_class - обученные веса нейронки по классификации сортов древесины
-    path_save - куда сохраняем результаты
-    conf - уверенность
-    bbox_type - тип bounding box, варианты: ellipse, circle, box
-    final_wide - ширина выводимого изображения
-    show - визуализировать результат (boolean)
 
-    на выходе:
+    :param img_dir - путь к изображению
+    :param w_length - длина бревен
+    :param weighns_yolov5 - обученные веса yolo
+    :param weighns_class - обученные веса нейронки по классификации сортов древесины
+    :param path_save - куда сохраняем результаты
+    :param conf - уверенность - параметр YOLO, от 0 до 1.
+    :param bbox_type - тип bounding box, варианты: ellipse, circle, box
+    :param final_wide - ширина выводимого изображения
+    :param iou_thr - intersection over union threshold - параметр YOLO, от 0 до 1.
+
+    :return:
     img_edited - изображение шириной final_wide c нанесенными кругами
     df - датафрейм со всеми данными по древесине
     w_volume - обем древесины в кузове
@@ -90,7 +91,7 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     draw_classes(resized, bboxes, w_class_list, detect_dir)
 
     w_volume = round(w_length / 100 * s_overall, 2)  # пользователь вводит w_length в см
-    stack_width, stack_height = calc_stack_geometry(bboxes, scale_sq, img_dir)
+    stack_width, stack_height, _, _, _, _, _, _ = calc_stack_geometry(bboxes, scale_sq, img_dir)
 
     img_edited = Image.fromarray(img, 'RGB')
     img_edited.save(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.png')
@@ -111,14 +112,35 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
 
 
 def get_difference(img_dir_1, img_dir_2, weights_yolov5, weights_class, weights_compare, path_save, acc_margin):
+    """
+    Функция для определения совпадений бревен с первой картинки с бревнами на второй картинке.
+
+    :param img_dir_1: директория первого изображения для операции сравнения
+    :param img_dir_2: директория второго изображения для операции сравнения
+    :param weights_yolov5: директория весов для YOLO
+    :param weights_class: директория весов для классификации бревен
+    :param weights_compare: директория весов для сравнения бревен между собой
+    :param path_save: папка, в которой хранятся лейблы после обработки изображения YOLO
+    :param acc_margin: точность, ниже которой выход нейронки будет считаться недействительным (нейронка не нашла
+    совпадений по бревну с 1 картинки у бревен со второй картинки)
+    :return:
+    img_1, img_2 - размеченные картинки, где каждому бревну присвоен свой id номер.
+    percentage_same - процент бревен с 1й картинки, найденных на 2й картинке
+    """
+
     df_1, img_edited_1, _, _, _, _, _ = predict_timber(1, weights_yolov5, weights_class, img_dir_1,
                                                        path_save)
 
     df_2, img_edited_2, _, _, _, _, _ = predict_timber(1, weights_yolov5, weights_class, img_dir_2,
                                                        path_save)
 
-    matching_dict = compare_images(img_dir_1, img_dir_2, df_1, df_2,
-                                   model_path=weights_compare, dim=(64, 64), acc_margin=acc_margin)
+    # matching_dict = compare_images(img_dir_1, img_dir_2, df_1, df_2,
+    #                                model_path=weights_compare, dim=(64, 64), acc_margin=acc_margin)
+
+    neighbours_list = get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad=1.3)
+
+    matching_dict = compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, model_path=weights_compare, dim=(64, 64),
+                                             acc_margin=acc_margin, neighbours_list=neighbours_list)
 
     img_1, img_2, percentage_same = draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict,
                                                        color_box=(0, 0, 255), color_text=(255, 255, 255), thickness=2)
