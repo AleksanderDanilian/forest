@@ -139,7 +139,7 @@ def get_difference(img_dir_1, img_dir_2, weights_yolov5, weights_class, weights_
 
     neighbours_list = get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad=1.3)
 
-    matching_dict = compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, model_path=weights_compare, dim=(64, 64),
+    matching_dict = compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, default_model_path=weights_compare, dim=(64, 64),
                                              acc_margin=acc_margin, neighbours_list=neighbours_list)
 
     img_1, img_2, percentage_same = draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict,
