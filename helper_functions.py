@@ -5,12 +5,18 @@ import cv2
 import numpy as np
 import tensorflow
 from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.image import smart_resize
+from tensorflow.keras import layers
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from sklearn.model_selection import train_test_split
+
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 
 import PIL
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageEnhance
 
 import random
 import os
@@ -625,6 +631,170 @@ def compare_images(img_dir_1, img_dir_2, df_1, df_2, model_path, dim, acc_margin
     return match_dict
 
 
+def get_train_batch(path, dim, im_id, crops_1):
+    """
+    Функция создания train batch для обучения нейронок для каждого бревна.
+    :param path:
+    :param dim:
+    :param im_id:
+    :param crops_1:
+    :return:
+    """
+
+    x_tr_1 = []
+    x_tr_2 = []
+    y_tr = []
+
+    if path is not None:
+        image_names = os.listdir(path)
+        iter_len = len(image_names)
+        img = Image.open(os.path.join(path, image_names[im_id]))
+        img_1 = np.array(img)
+        img_1 = smart_resize(img_1, dim)
+    else:
+        img = crops_1[im_id]
+        img_1 = np.array(img)
+        iter_len = 2 * len(crops_1)
+
+    for i in range(iter_len):
+
+        x_tr_1.append(img_1)  # True img to compare with
+
+        contr = np.random.randint(0, 15)  # в 1/15 случаев будем применять какие-то изменения к фотке
+        crop = np.random.randint(0, 15)
+        rotate = np.random.randint(0, 15)
+
+        if contr == 1:
+            scale_value = np.random.uniform(0.4, 1.6)
+            img = ImageEnhance.Contrast(img).enhance(scale_value)
+
+        if crop == 1:
+            img = img.crop((np.random.randint(0, 4), np.random.randint(0, 4),
+                            img.size[0] - np.random.randint(0, 4), img.size[1] - np.random.randint(0, 4)))
+
+        if rotate == 1:
+            rotate_level = np.random.randint(-5, 5)
+            img = img.rotate(rotate_level)
+            img.crop((5, 5, img.size[0] - 5, img.size[1] - 5))
+
+        img_2 = np.array(img)
+        img_2 = smart_resize(img_2, dim)
+        x_tr_2.append(img_2)
+
+        y_tr.append(1)
+
+    for i in range(iter_len - 1):
+
+        x_tr_1.append(img_1)
+
+        if path is not None:
+            if i != im_id:
+                img_2 = Image.open(os.path.join(path, image_names[i]))  # любая картинка, кроме img_1
+        else:
+            if i != im_id and i < len(crops_1):
+                img_2 = crops_1[i]
+                img_2 = np.array(img_2)
+                img_2 = smart_resize(img_2, dim)
+                x_tr_2.append(img_2)
+                y_tr.append(0)
+
+            elif i != im_id and i > len(crops_1):  # added this to double amt of pics (iter_len x2)
+                img_2 = crops_1[i - len(crops_1)]
+                rotate_level = np.random.randint(-5, 5)
+                img_2 = img_2.rotate(rotate_level)
+                img_2.crop((5, 5, img_2.size[0] - 5, img_2.size[1] - 5))
+                img_2 = np.array(img_2)
+                img_2 = smart_resize(img_2, dim)
+                x_tr_2.append(img_2)
+                y_tr.append(0)
+
+    X = np.array(list(zip(x_tr_1, x_tr_2)))
+
+    x_train, x_test, y_train, y_test = train_test_split(X, y_tr, test_size=0.15, random_state=42)
+
+    x1_train, x2_train = x_train[:, 0], x_train[:, 1]
+    x1_test, x2_test = x_test[:, 0], x_test[:, 1]
+
+    y_train = np.array(y_train)
+    y_test = np.array(y_test)
+
+    return x1_train, x2_train, y_train, x1_test, x2_test, y_test
+
+
+def make_pile_model(x1_train, x2_train, y_train, x1_test, x2_test, y_test, nr_wood_cr1):
+    """
+    Функция создания модели НС для каждого бревна из df_1.
+
+    :param x1_train:
+    :param x2_train:
+    :param y_train:
+    :param x1_test:
+    :param x2_test:
+    :param y_test:
+    :param nr_wood_cr1:
+    :return:
+    """
+    input_1 = layers.Input(shape=(64, 64, 3), name="img_1")
+    input_2 = layers.Input(shape=(64, 64, 3), name="img_2")
+
+    x = layers.Conv2D(32, 3, activation="relu")(input_1)
+    x = layers.Conv2D(32, 3, activation="relu")(x)
+    x = layers.Conv2D(32, 3, activation='relu', strides=2)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Conv2D(64, 3, activation="relu")(x)
+    x = layers.Conv2D(64, 3, activation="relu")(x)
+    x = layers.Conv2D(64, 3, activation='relu', strides=2)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Conv2D(128, 3, activation="relu")(x)
+    x = layers.Conv2D(128, 3, activation="relu")(x)
+    x = layers.Conv2D(128, 3, activation='relu', strides=2)(x)
+    x = layers.BatchNormalization()(x)
+
+    y = layers.Conv2D(32, 3, activation="relu")(input_2)
+    y = layers.Conv2D(32, 3, activation="relu")(y)
+    y = layers.Conv2D(64, 3, activation='relu', strides=2)(y)
+    y = layers.BatchNormalization()(y)
+    y = layers.Conv2D(64, 3, activation="relu")(y)
+    y = layers.Conv2D(64, 3, activation="relu")(y)
+    y = layers.Conv2D(64, 3, activation='relu', strides=2)(y)
+    y = layers.BatchNormalization()(y)
+    y = layers.Conv2D(128, 3, activation="relu")(y)
+    y = layers.Conv2D(128, 3, activation="relu")(y)
+    y = layers.Conv2D(128, 3, activation='relu', strides=2)(y)
+    y = layers.BatchNormalization()(y)
+
+    con = layers.concatenate([x, y])
+
+    con = layers.Flatten()(con)
+    con = layers.Dense(128, activation='relu')(con)
+    com = layers.Dropout(0.1)(con)
+    output = layers.Dense(1, activation='sigmoid')(con)
+
+    model = tf.keras.Model([input_1, input_2], output, name="my_model")
+
+    model.compile(optimizer=Adam(0.001), loss='binary_crossentropy', metrics=['accuracy'])
+
+    history = model.fit([x1_train, x2_train], y_train, batch_size=4, epochs=5,
+                        validation_data=((x1_test, x2_test), y_test))
+    counter = 0
+    status = 'Success'
+    while (history.history['val_accuracy'][-1] < 0.85):
+        history = model.fit([x1_train, x2_train], y_train, batch_size=4, epochs=4,
+                            validation_data=((x1_test, x2_test), y_test))
+        counter += 1
+        print('+=+=+=+=+=+=+=+=+=', counter)
+        print(history.history['val_accuracy'][-1])
+        if history.history['val_accuracy'][-1] > 0.85:
+            status = 'Success'
+        if counter == 3:
+            print('не получилось обучить модель на этапе', nr_wood_cr1)
+            if history.history['val_accuracy'][-1] < 0.85:
+                status = 'Fail'
+            break
+
+    return model, status
+
+
 def compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, dim, acc_margin, default_model_path, neighbours_list):
     """
     Функция сравнения изображений лесовоза с учетом расположения каждого бревна в штабеле. Нейронка здесь будет искать
@@ -669,10 +839,9 @@ def compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, dim, acc_margin, 
 
         img_crop_2 = ImageOps.fit(img_crop_2, dim, Image.ANTIALIAS)
         crops_2.append(img_crop_2)
-        match = [[] for el in range(len(df_1))]
+        match = [[] for _ in range(len(df_1))]
 
     for i in range(len(df_1)):
-
         x_cntr, y_cntr, w, h = bboxes_to_int(img_1, bboxes_1[i], PIL=True)
         x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
 
@@ -790,7 +959,7 @@ def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
     """
 
     bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
-    _, _, x_min_1, y_min_1, x_max_1, y_max_1, width_1, height_1 = calc_stack_geometry(bboxes_1, img_dir_1)
+    _, _, x_min_1, y_min_1, x_max_1, y_max_1, width_1, height_1 = calc_stack_geometry(bboxes_1, 1, img_dir_1)
     for row in bboxes_1:
         row[0] = row[0] - x_min_1 / width_1
         row[1] = row[1] - y_min_1 / height_1
