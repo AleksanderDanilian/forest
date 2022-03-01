@@ -42,7 +42,7 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
     """
     Функция подсчета общей площади бревен
     :param img - изображение (numpy array)
-    :param bbox - выход YOLO, bounding box бревна
+    :param bbox - выход YOLO, bounding box бревна в абсолютных величинах (пример [ 311.88, 80.549, 26.25, 23.728])
     :param area - площадь номерного знака в пикселях
     :param color - цвет рамки bbox
     :param thickness - толщина рамки
@@ -53,9 +53,8 @@ def visualize_bbox(img, bbox, area=0, color=BOX_COLOR, thickness=2, bbox_type='e
     timb_area - площадь бревна
     scale_sq - масштаб изображения
     """
-    print('bbox внутри visualize_bbox', bbox)
+
     x_cntr, y_cntr, w, h = map(int, bbox)  # координаты центров и размеры рамок
-    print('x_c, y_c, w, h', x_cntr, y_cntr, w, h)
     x_min, x_max, y_min, y_max = int(x_cntr - w / 2), int(x_cntr + w / 2), int(y_cntr - h / 2), int(y_cntr + h / 2)
     center_coordinates = (x_cntr, y_cntr)
 
