@@ -97,7 +97,7 @@ def visualize(image, bboxes, area=0, bbox_type='ellipse'):
     Функция подсчета общей площади бревен
 
     :param image - изображение (numpy array)
-    :param bboxes - выход YOLO, список координат бревен
+    :param bboxes - выход YOLO, список координат бревен в относительных координатах
     :param area - площадь номерного знака в пикселях
     :param bbox_type - тип рамки
 
@@ -111,6 +111,7 @@ def visualize(image, bboxes, area=0, bbox_type='ellipse'):
     bbxs = bboxes.copy()
     area_list = []  # список площадей каждого бревна
 
+    # перевод bboxes из относительных в абсолютные величины.
     if len(bbxs):
         bbxs[:, [0, 2]] = bbxs[:, [0, 2]] * img.shape[1]
         bbxs[:, [1, 3]] = bbxs[:, [1, 3]] * img.shape[0]
