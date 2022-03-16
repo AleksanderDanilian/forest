@@ -994,8 +994,8 @@ def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
     return neighbours_list
 
 
-def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, color_search=(255, 255, 255),
-               color_paint=(200, 200, 200), save_path = detect_dir):
+def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, color_search=(255, 255, 255),
+               color_paint=(200, 200, 200)):
     img = cv2.imread(img_piles_path)
 
     # height perspective

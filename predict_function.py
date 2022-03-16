@@ -110,9 +110,9 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     # coords_gps = get_GPS(img_dir)  # извлекаем гео метки # какая-то ошибка при импорте библиотеки
     coords_gps = (0,0)
 
-    area_laser, img_laser = calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path,
+    area_laser, img_laser = calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, detect_dir,
                                        color_search=(255, 255, 255),
-                                       color_paint=(200, 200, 200), save_path=detect_dir)
+                                       color_paint=(200, 200, 200))
 
     return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps, area_laser, img_laser
 
