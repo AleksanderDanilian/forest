@@ -995,7 +995,7 @@ def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
 
 
 def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, img_dir,
-               color_search=(255, 0, 0), color_paint=(255, 255, 255), RGB = False):
+               color_search=(255, 0, 0), color_paint=[255, 255, 255], RGB = False):
 
     if not RGB:
         temp_0 = color_search[0]
