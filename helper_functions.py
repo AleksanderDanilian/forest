@@ -942,6 +942,14 @@ def check_save_dir():
     return detect_dir
 
 
+def support_arr_generator(element, variance=3):
+    lst_with_vars = list(range(-variance, variance))
+    coord_variations = [[x, y] for x in lst_with_vars for y in lst_with_vars]
+    new_el_list = [[element[0] + i, element[1] + j] for [i, j] in coord_variations]
+
+    return new_el_list
+
+
 def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
     """
     Функция по поиску бревен - "соседей". Каждому бревну с 1й картинки выбираются близкие по координатам бревна со
@@ -984,3 +992,102 @@ def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
         neighbours_list.append(temp)
 
     return neighbours_list
+
+
+def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, color_search=(255, 255, 255),
+               color_paint=(200, 200, 200), save_path = detect_dir):
+    img = cv2.imread(img_piles_path)
+
+    # height perspective
+    color_cells = {}
+
+    for i, col in enumerate(img):
+        for j, cell in enumerate(col):
+            if cell[0] == color_search[0] and cell[1] == color_search[1] and cell[2] == color_search[2] \
+                    and y_min - 30 < i < y_max + 30 and x_min - 30 < j < x_max + 30: # 30 - margin for error of stack calc
+                try:
+                    temp_val = color_cells[i]  # arr exists already
+                    temp_val.extend([j])
+                    color_cells[i] = temp_val
+                except KeyError as e:
+                    color_cells[i] = [j]
+
+    left_margin_total = []
+    right_margin_total = []
+    for key, vals in color_cells.items():
+        left_margin = [min(vals), key]
+        right_margin = [max(vals), key]
+        left_margin_total.append(left_margin)
+        right_margin_total.append(right_margin)
+
+    # width perspective
+    color_cells = {}
+
+    for i, col in enumerate(img):
+        for j, cell in enumerate(col):
+            if cell[0] == color_search[0] and cell[1] == color_search[1] and cell[2] == color_search[2] \
+                    and 110 < i < 270 and 100 < j < 400:  # j - x, i - y
+                try:
+                    temp_val = color_cells[j]  # arr exists already
+                    temp_val.extend([i])
+                    color_cells[j] = temp_val
+                except KeyError as e:
+                    color_cells[j] = [i]
+
+    top_margin_total = []
+    bottom_margin_total = []
+    for key, vals in color_cells.items():
+        top_margin = [key, min(vals)]
+        bottom_margin = [key, max(vals)]
+        top_margin_total.append(top_margin)
+        bottom_margin_total.append(bottom_margin)
+
+    # сортируем массивы для получения корректной замкнутой ломанной линии (left-bottom-right-top)
+    top_margin_total = sorted(top_margin_total, key=lambda x: x[0], reverse=True)
+    bottom_margin_total = sorted(bottom_margin_total, key=lambda x: x[0])
+    right_margin_total = list(reversed(right_margin_total))
+
+    # очистка от дупликатов по проекциям
+    comb_l_r = []
+    comb_l_r.extend(left_margin_total)
+    comb_l_r.extend(right_margin_total)
+    top_margin_total = [e for e in top_margin_total if e not in comb_l_r]
+    bottom_margin_total = [e for e in bottom_margin_total if e not in comb_l_r]
+
+    # доп очистка для bottom и top сегментов (+- 10 пикселей)
+    arr_to_del = []
+    for el in bottom_margin_total:
+        arr = support_arr_generator(el, variance=10)
+        for val in arr:
+            if val in left_margin_total or val in right_margin_total:
+                arr_to_del.append(el)
+                break
+
+    bottom_margin_total = [e for e in bottom_margin_total if e not in arr_to_del]
+
+    arr_to_del = []
+    for el in top_margin_total:
+        arr = support_arr_generator(el, variance=10)
+        for val in arr:
+            if val in left_margin_total or val in right_margin_total:
+                arr_to_del.append(el)
+                break
+
+    top_margin_total = [e for e in top_margin_total if e not in arr_to_del]
+
+    # создаем замкнутый контур
+    contour = np.concatenate([left_margin_total, bottom_margin_total, right_margin_total, top_margin_total])
+
+    cv2.drawContours(img, np.array(contour).reshape((-1, 1, 2)).astype(np.int32), -1,
+                     (color_paint[0], color_paint[1], color_paint[2]), 3)
+
+    cv2.imwrite(os.path.join(save_path, 'contour.jpg'), img)
+
+    surface = Polygon(contour)
+    area_pix = surface.area # pixels
+    area_dm = area_pix * scale_sq # pix * дм2/pix = дм2
+
+    plt.plot(*surface.exterior.xy)
+
+    return area_dm, img
+

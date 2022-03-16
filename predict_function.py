@@ -6,7 +6,7 @@ from PIL import Image
 import numpy as np
 from shapely.geometry import Polygon
 from helper_functions import plate_detector, visualize, prepare_crops, calc_stack_geometry, get_GPS, draw_classes, \
-    find_nearest, compare_images, draw_matching_bbox, compare_images_geofilter, get_neighbour_list
+    find_nearest, compare_images, draw_matching_bbox, compare_images_geofilter, get_neighbour_list, calc_laser
 from tensorflow.keras.models import load_model
 from google.colab.patches import cv2_imshow
 
@@ -108,7 +108,11 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
 
     coords_gps = get_GPS(img_dir)  # извлекаем гео метки
 
-    return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps
+    area_laser, img_laser = calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path,
+                                       color_search=(255, 255, 255),
+                                       color_paint=(200, 200, 200), save_path=detect_dir)
+
+    return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps, area_laser, img_laser
 
 
 def get_difference(img_dir_1, img_dir_2, weights_yolov5, weights_class, weights_compare, path_save, acc_margin):
@@ -139,7 +143,8 @@ def get_difference(img_dir_1, img_dir_2, weights_yolov5, weights_class, weights_
 
     neighbours_list = get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad=1.3)
 
-    matching_dict = compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, default_model_path=weights_compare, dim=(64, 64),
+    matching_dict = compare_images_geofilter(img_dir_1, img_dir_2, df_1, df_2, default_model_path=weights_compare,
+                                             dim=(64, 64),
                                              acc_margin=acc_margin, neighbours_list=neighbours_list)
 
     img_1, img_2, percentage_same = draw_matching_bbox(img_dir_1, img_dir_2, df_1, df_2, matching_dict,
