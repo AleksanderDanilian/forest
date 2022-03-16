@@ -1087,7 +1087,11 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
 
     cv2.imwrite(os.path.join(save_path, 'contour.jpg'), img)
 
+    print(len(contour))
+    print(x_min, y_min, x_max, y_max)
+    print(img.shape[0], img.shape[1])
     surface = Polygon(contour)
+
     area_pix = surface.area # pixels
     area_dm = area_pix * scale_sq # pix * дм2/pix = дм2
 
