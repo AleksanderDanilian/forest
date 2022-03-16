@@ -28,7 +28,7 @@ import time
 
 from shapely.geometry import Polygon
 
-from GPSPhoto import gpsphoto
+# from GPSPhoto import gpsphoto # какая-то ошибка лезет при импорте
 
 # Функции визуализации 
 
