@@ -32,7 +32,7 @@ from shapely.geometry import Polygon
 
 # Функции визуализации 
 
-BOX_COLOR = (255, 0, 0)  # Red
+BOX_COLOR = (255, 0, 0)  # Red RGB
 TEXT_COLOR = (40, 0, 0)  # White
 pi = 3.14159
 PLATE_AREA = 5.2 * 1.1
@@ -994,13 +994,31 @@ def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
     return neighbours_list
 
 
-def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, final_wide,
-               color_search=(255, 0, 0), color_paint=(255, 255, 255)):
+def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, img_dir,
+               color_search=(255, 0, 0), color_paint=(255, 255, 255), RGB = False):
 
-    image = cv2.imread(img_piles_path)
-    r = float(final_wide) / image.shape[1]
-    dim = (final_wide, int(image.shape[0] * r))
-    img = cv2.resize(image, dim, interpolation=cv2.INTER_AREA) # подгоняем под размер остальных картинок (для масштаба)
+    if not RGB:
+        temp_0 = color_search[0]
+        color_search[0] = color_search[2]
+        color_search[2] = temp_0
+
+    orig_img = cv2.imread(img_dir)
+    img = cv2.imread(img_piles_path)
+
+    # найдем отмасштабированные значения x и y
+    orig_height = orig_img.shape[0]
+    print('orig height', orig_height)
+    orig_width = orig_img.shape[1]
+    print('orig width', orig_height)
+    sc_height = img.shape[0]
+    print('sc height', sc_height)
+    sc_width = img.shape[1]
+    print('sc width', sc_width)
+
+    x_sc = sc_width / orig_width
+    print('scale x', x_sc)
+    y_sc = sc_height / orig_height
+    print('scale y', y_sc)
 
     # height perspective
     color_cells = {}
@@ -1008,7 +1026,7 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     for i, col in enumerate(img):
         for j, cell in enumerate(col):
             if cell[0] == color_search[0] and cell[1] == color_search[1] and cell[2] == color_search[2] \
-                    and y_min - 30 < i < y_max + 30 and x_min - 30 < j < x_max + 30: # 30 - margin for error of stack calc
+                    and y_min*y_sc - 30 < i < y_max*y_sc + 30 and x_min*x_sc - 30 < j < x_max*x_sc + 30: # 30 - margin for error of stack calc
                 try:
                     temp_val = color_cells[i]  # arr exists already
                     temp_val.extend([j])
@@ -1030,7 +1048,7 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     for i, col in enumerate(img):
         for j, cell in enumerate(col):
             if cell[0] == color_search[0] and cell[1] == color_search[1] and cell[2] == color_search[2] \
-                    and 110 < i < 270 and 100 < j < 400:  # j - x, i - y
+                    and y_min*y_sc - 30 < i < y_max*y_sc + 30 and x_min*x_sc - 30 < j < x_max*x_sc + 30: # j - x, i - y
                 try:
                     temp_val = color_cells[j]  # arr exists already
                     temp_val.extend([i])
