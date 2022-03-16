@@ -112,7 +112,7 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
 
     # ищем красный цвет на картинке, закрашиваем контур белым
     area_laser, img_laser = calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, detect_dir, img_dir,
-                                       color_search=(255, 0, 0), color_paint=(255, 255, 255), RGB=False)
+                                       color_search=[255, 0, 0], color_paint=[255, 255, 255], RGB=False)
 
     return df, img_edited, w_volume, text_arr, stack_width, stack_height, coords_gps, area_laser, img_laser
 
