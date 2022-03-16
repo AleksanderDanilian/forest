@@ -91,10 +91,11 @@ def predict_timber(w_length, weights_yolov5, weights_class, img_dir, path_save,
     draw_classes(resized, bboxes, w_class_list, detect_dir)
 
     w_volume = round(w_length / 100 * s_overall, 2)  # пользователь вводит w_length в см
-    stack_width, stack_height, _, _, _, _, _, _ = calc_stack_geometry(bboxes, scale_sq, img_dir)
+    stack_width, stack_height, x_min, y_min, x_max, y_max, _, _ = calc_stack_geometry(bboxes, scale_sq, img_dir)
 
     img_edited = Image.fromarray(img, 'RGB')
-    img_edited.save(detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.png')
+    img_piles_path = detect_dir + f'/{s_overall}_{w_volume}_{text_arr}.png'
+    img_edited.save(img_piles_path)
 
     bb_pandas = [str(i) for i in bboxes]  # по другому список не положить в 1 колонку в пандас
 
