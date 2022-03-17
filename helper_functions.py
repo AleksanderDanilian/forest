@@ -4,6 +4,7 @@ import re
 import cv2
 import numpy as np
 import tensorflow
+from scipy.spatial import distance
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import smart_resize
 from tensorflow.keras import layers
@@ -994,9 +995,33 @@ def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
     return neighbours_list
 
 
-def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, img_dir,
-               color_search=[255, 0, 0], color_paint=[255, 255, 255], RGB = False):
+def calc_eucl_dist(min_val, max_val, view_arr, margin=5):
+    """
+    Вспомогательная функция очистки массива от удаленных точек.
+    Функция позволяет найти евклидово расстояние от центра массива view до каждой точки этого массива.
+    Если точка располагается далеко от центра (дальше, чем половина длины штабеля соответсвующей стороны проекции),
+    то значит эту точку надо удалить.
+    :param min_val: x_min или y_min в зависимости от направления проекции (view_arr)
+    :param max_val: x_max или y_max в зависимости от направления проекции (view_arr)
+    :param view_arr: массив, содержащий точки определенной проекции
+    :param margin: сколько пикселей дополнительно захватываем (уменьшаем кол-во отсеченных точек по краям)
+    :return: view_arr - массив, очищенный от сильно удаленных точек
+    """
+    drop_idx = []
+    idx_middle = int(len(view_arr) / 2)
+    for i, el in enumerate(view_arr):
+        dist = distance.euclidean(view_arr[idx_middle], el)
+        if dist > ((max_val - min_val) / 2 + margin):
+            drop_idx.append(i)
 
+    view_arr = np.delete(view_arr, drop_idx, axis=0)
+    view_arr = [list(el) for el in view_arr]  # для дальнеших преобразований
+
+    return view_arr
+
+
+def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, img_dir,
+               color_search=[255, 0, 0], color_paint=[255, 255, 255], RGB=False):
     if not RGB:
         temp_0 = color_search[0]
         color_search[0] = color_search[2]
@@ -1026,7 +1051,7 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     for i, col in enumerate(img):
         for j, cell in enumerate(col):
             if cell[0] == color_search[0] and cell[1] == color_search[1] and cell[2] == color_search[2] \
-                    and y_min*y_sc - 30 < i < y_max*y_sc + 30 and x_min*x_sc - 30 < j < x_max*x_sc + 30: # 30 - margin for error of stack calc
+                    and y_min * y_sc - 30 < i < y_max * y_sc + 30 and x_min * x_sc - 30 < j < x_max * x_sc + 30:  # 30 - margin for error of stack calc
                 try:
                     temp_val = color_cells[i]  # arr exists already
                     temp_val.extend([j])
@@ -1048,7 +1073,7 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     for i, col in enumerate(img):
         for j, cell in enumerate(col):
             if cell[0] == color_search[0] and cell[1] == color_search[1] and cell[2] == color_search[2] \
-                    and y_min*y_sc - 30 < i < y_max*y_sc + 30 and x_min*x_sc - 30 < j < x_max*x_sc + 30: # j - x, i - y
+                    and y_min * y_sc - 30 < i < y_max * y_sc + 30 and x_min * x_sc - 30 < j < x_max * x_sc + 30:  # j - x, i - y
                 try:
                     temp_val = color_cells[j]  # arr exists already
                     temp_val.extend([i])
@@ -1076,26 +1101,32 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     top_margin_total = [e for e in top_margin_total if e not in comb_l_r]
     bottom_margin_total = [e for e in bottom_margin_total if e not in comb_l_r]
 
-    # доп очистка для bottom и top сегментов (+- 10 пикселей)
-    arr_to_del = []
-    for el in bottom_margin_total:
-        arr = support_arr_generator(el, variance=10)
+    # очистим массивы от сильно удаленных точек (крайние проекции на бревна в середине штабеля, например)
+    top_margin_total = calc_eucl_dist(x_min * x_sc, x_max * x_sc, top_margin_total)
+    bottom_margin_total = calc_eucl_dist(x_min * x_sc, x_max * x_sc, bottom_margin_total)
+    left_margin_total = calc_eucl_dist(y_min * y_sc, y_max * y_sc, left_margin_total)
+    right_margin_total = calc_eucl_dist(y_min * y_sc, y_max * y_sc, right_margin_total)
+
+    # доп очистка для bottom и top сегментов (+- variance пикселей)
+    drop_idx = []
+    for i, el in enumerate(bottom_margin_total):
+        arr = support_arr_generator(el, variance=12)
         for val in arr:
             if val in left_margin_total or val in right_margin_total:
-                arr_to_del.append(el)
+                drop_idx.append(i)
                 break
 
-    bottom_margin_total = [e for e in bottom_margin_total if e not in arr_to_del]
+    bottom_margin_total = np.delete(bottom_margin_total, drop_idx, axis=0)
 
-    arr_to_del = []
-    for el in top_margin_total:
-        arr = support_arr_generator(el, variance=10)
+    drop_idx = []
+    for i, el in enumerate(top_margin_total):
+        arr = support_arr_generator(el, variance=12)
         for val in arr:
             if val in left_margin_total or val in right_margin_total:
-                arr_to_del.append(el)
+                drop_idx.append(i)
                 break
 
-    top_margin_total = [e for e in top_margin_total if e not in arr_to_del]
+    top_margin_total = np.delete(top_margin_total, drop_idx, axis=0)
 
     # создаем замкнутый контур
     contour = np.concatenate([left_margin_total, bottom_margin_total, right_margin_total, top_margin_total])
@@ -1110,10 +1141,9 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     print(img.shape[0], img.shape[1])
     surface = Polygon(contour)
 
-    area_pix = surface.area # pixels
-    area_dm = area_pix * scale_sq # pix * дм2/pix = дм2
+    area_pix = surface.area  # pixels
+    area_dm = area_pix * scale_sq  # pix * дм2/pix = дм2
 
     plt.plot(*surface.exterior.xy)
 
     return area_dm, img
-
