@@ -965,7 +965,8 @@ def get_neighbour_list(df_1, df_2, img_dir_1, img_dir_2, rad):
     на основе предположения, что перевозимый штабель древесины не менял своей геометрической формы и бревна не меняли
     свое расположение внутри штабеля.
 
-    :return: neighbours_list - список бревен картинки 2, которые вероятно распологались рядом с искомым бревном картинки 1.
+    :return:
+    neighbours_list - список бревен картинки 2, которые вероятно распологались рядом с искомым бревном картинки 1.
     """
 
     bboxes_1 = get_bbox_from_df(df_1['bbox'].values)
@@ -1005,7 +1006,9 @@ def calc_eucl_dist(min_val, max_val, view_arr, margin=5):
     :param max_val: x_max или y_max в зависимости от направления проекции (view_arr)
     :param view_arr: массив, содержащий точки определенной проекции
     :param margin: сколько пикселей дополнительно захватываем (уменьшаем кол-во отсеченных точек по краям)
-    :return: view_arr - массив, очищенный от сильно удаленных точек
+    :return:
+    view_arr - массив, очищенный от сильно удаленных точек
+    img - картинка, размеченная по контуру
     """
     drop_idx = []
     idx_middle = int(len(view_arr) / 2)
@@ -1020,8 +1023,24 @@ def calc_eucl_dist(min_val, max_val, view_arr, margin=5):
     return view_arr
 
 
-def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, img_dir,
+def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, img_dir, w_length,
                color_search=[255, 0, 0], color_paint=[255, 255, 255], RGB=False):
+    """
+    Функция используется для нахождения обьема штабеля с древесиной по методу лазерной сьемки.
+    :param x_min: координаты x левого верхнего угла (0, 0 - сверху слева)
+    :param y_min: координаты y левого верхнего угла
+    :param x_max: координаты x правого нижнего угла
+    :param y_max: координаты y правого нижнего угла
+    :param scale_sq: масштаб дм2/pix
+    :param img_piles_path: путь к картинке с размеченной древесиной
+    :param save_path: путь к папке, где сохраняются все файлы
+    :param img_dir: путь к исходному изображению
+    :param w_length: длина бревен, см
+    :param color_search: какой цвет ищем на картинке
+    :param color_paint: каким цветом закрашиваем контур
+    :param RGB: RGB (True) или BGR (False)
+    :return: w_volume - обьем древесины в м3
+    """
     if not RGB:
         temp_0 = color_search[0]
         color_search[0] = color_search[2]
@@ -1032,20 +1051,20 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
 
     # найдем отмасштабированные значения x и y
     orig_height = orig_img.shape[0]
-    print('orig height', orig_height)
+    # print('orig height', orig_height)
     orig_width = orig_img.shape[1]
-    print('orig width', orig_height)
+    # print('orig width', orig_height)
     sc_height = img.shape[0]
-    print('sc height', sc_height)
+    # print('sc height', sc_height)
     sc_width = img.shape[1]
-    print('sc width', sc_width)
+    # print('sc width', sc_width)
 
     x_sc = sc_width / orig_width
-    print('scale x', x_sc)
+    # print('scale x', x_sc)
     y_sc = sc_height / orig_height
-    print('scale y', y_sc)
+    # print('scale y', y_sc)
 
-    # height perspective
+    # y perspective
     color_cells = {}
 
     for i, col in enumerate(img):
@@ -1067,7 +1086,7 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
         left_margin_total.append(left_margin)
         right_margin_total.append(right_margin)
 
-    # width perspective
+    # x perspective
     color_cells = {}
 
     for i, col in enumerate(img):
@@ -1131,8 +1150,12 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     # создаем замкнутый контур
     contour = np.concatenate([left_margin_total, bottom_margin_total, right_margin_total, top_margin_total])
 
-    cv2.drawContours(img, np.array(contour).reshape((-1, 1, 2)).astype(np.int32), -1,
-                     (color_paint[0], color_paint[1], color_paint[2]), 3)
+    if RGB:
+        cv2.drawContours(img, np.array(contour).reshape((-1, 1, 2)).astype(np.int32), -1,
+                         (color_paint[0], color_paint[1], color_paint[2]), 3)
+    else:
+        cv2.drawContours(img, np.array(contour).reshape((-1, 1, 2)).astype(np.int32), -1,
+                         (color_paint[2], color_paint[1], color_paint[0]), 3)
 
     cv2.imwrite(os.path.join(save_path, 'contour.jpg'), img)
 
@@ -1144,6 +1167,8 @@ def calc_laser(x_min, y_min, x_max, y_max, scale_sq, img_piles_path, save_path, 
     area_pix = surface.area  # pixels
     area_dm = area_pix * scale_sq  # pix * дм2/pix = дм2
 
+    w_volume = round(w_length * area_dm / 10000, 2)  # м3
+
     plt.plot(*surface.exterior.xy)
 
-    return area_dm, img
+    return w_volume, img
